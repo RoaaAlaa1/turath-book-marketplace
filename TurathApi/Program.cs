@@ -1,9 +1,12 @@
 using Microsoft.EntityFrameworkCore;
-using TurathApi.Data;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using TurathApi.Data;
+using TurathApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddScoped<ChatbotToolService>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -64,6 +67,7 @@ app.UseHttpsRedirection();
 app.UseCors("Frontend");
 app.UseAuthorization();
 app.MapControllers();
+
 
 app.Run();
 
