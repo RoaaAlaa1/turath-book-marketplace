@@ -11,7 +11,7 @@ namespace TurathApi.DTOs
         public int BookId { get; set; }
 
         [Range(1, 5)]
-        public int Rating { get; set; }
+        public float Rating { get; set; }
 
         [Required]
         [MaxLength(2000)]
@@ -21,7 +21,7 @@ namespace TurathApi.DTOs
     public class UpdateReviewDto
     {
         [Range(1, 5)]
-        public int Rating { get; set; }
+        public float Rating { get; set; }
 
         [Required]
         [MaxLength(2000)]

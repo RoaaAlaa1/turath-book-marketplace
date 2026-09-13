@@ -1,20 +1,22 @@
-using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
- 
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 var builder = WebApplication.CreateBuilder(args);
- 
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
- 
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
- 
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -25,7 +27,7 @@ builder.Services.AddSwaggerGen(options =>
         Description = "REST API for the Turath book marketplace. Add new models in Models/, register them on AppDbContext, then add a controller under Controllers/."
     });
 });
- 
+
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options =>
 {
@@ -45,9 +47,9 @@ builder.Services.AddCors(options =>
         }
     });
 });
- 
+
 var app = builder.Build();
- 
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -57,13 +59,12 @@ if (app.Environment.IsDevelopment())
         options.RoutePrefix = string.Empty;
     });
 }
- 
+
 app.UseHttpsRedirection();
 app.UseCors("Frontend");
 app.UseAuthorization();
 app.MapControllers();
- 
+
 app.Run();
- 
 
 
