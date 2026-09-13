@@ -12,8 +12,8 @@ using TurathApi.Data;
 namespace TurathApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260913130929_BooksCatalog")]
-    partial class BooksCatalog
+    [Migration("20260913200103_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -252,6 +252,30 @@ namespace TurathApi.Migrations
                         });
                 });
 
+            modelBuilder.Entity("TurathApi.Models.Comment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Comments");
+                });
+
             modelBuilder.Entity("TurathApi.Models.Order", b =>
                 {
                     b.Property<Guid>("Id")
@@ -331,8 +355,8 @@ namespace TurathApi.Migrations
                         .HasColumnType("int")
                         .HasColumnName("customer_id");
 
-                    b.Property<int>("Rating")
-                        .HasColumnType("int")
+                    b.Property<float>("Rating")
+                        .HasColumnType("real")
                         .HasColumnName("rating");
 
                     b.HasKey("Id");
