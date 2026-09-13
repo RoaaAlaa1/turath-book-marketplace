@@ -1,23 +1,36 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
 namespace TurathApi.Controllers
 {
-    [ApiController]
     [Route("api/[controller]")]
+    [ApiController]
     public class TestAuthController : ControllerBase
     {
-        [HttpGet("me")]
-        public IActionResult GetCurrentUser()
+        // 1. Endpoint عامة - أي حد يقدر يوصلها من غير تسجيل دخول
+        [HttpGet("public")]
+        public IActionResult PublicEndpoint()
         {
+            return Ok(new { message = "This is a public endpoint, anyone can access it!" });
+        }
+
+        // 2. Endpoint محمية - لا يمكن الوصول إليها إلا بـ JWT Token صالحة
+        [Authorize]
+        [HttpGet("protected")]
+        public IActionResult ProtectedEndpoint()
+        {
+            // استخراج بيانات المستخدم من الـ Claims الموجودة جوه التوكن
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var role = User.FindFirstValue(ClaimTypes.Role);
+            var email = User.FindFirstValue(ClaimTypes.Email);
+            var firstName = User.FindFirst("firstName")?.Value;
 
             return Ok(new
             {
-                Message = "Fake Auth Working Successfully!",
-                UserId = userId,
-                Role = role
+                message = "Access granted! You are authorized.",
+                userId,
+                email,
+                firstName
             });
         }
     }
