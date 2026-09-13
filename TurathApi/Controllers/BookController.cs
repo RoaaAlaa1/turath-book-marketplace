@@ -2,8 +2,9 @@
 using Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
 using TurathApi.Models;
+using TurathApi.Models.Enums;
 
-namespace TurathApi.Controllersلآ
+namespace TurathApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -21,7 +22,7 @@ namespace TurathApi.Controllersلآ
         [HttpGet]
         public async Task<IActionResult> GetMyBooks()
         {
-            var sellerId = Guid.Parse("414c784b-4c47-4684-838c-22a905580d64");
+            const int sellerId = 1;
 
             var books = await _context.Books
                 .Where(b => b.SellerId == sellerId)
@@ -35,11 +36,10 @@ namespace TurathApi.Controllersلآ
         [HttpPost]
         public async Task<IActionResult> Create(Book book)
         {
-            var sellerId = Guid.Parse("414c784b-4c47-4684-838c-22a905580d64");
+            const int sellerId = 1;
 
-            book.Id = Guid.NewGuid();
             book.SellerId = sellerId;
-            book.ApprovalStatus = "pending";
+            book.ApprovalStatus = ApprovalStatus.Pending;
 
             _context.Books.Add(book);
 
@@ -54,9 +54,9 @@ namespace TurathApi.Controllersلآ
         // PUT: api/Book/{id}
         // Edit seller's own book
         [HttpPut("{id}")]
-        public async Task<IActionResult> Edit(Guid id, Book book)
+        public async Task<IActionResult> Edit(int id, Book book)
         {
-            var sellerId = Guid.Parse("414c784b-4c47-4684-838c-22a905580d64");
+            const int sellerId = 1;
 
             var existingBook = await _context.Books
                 .FirstOrDefaultAsync(
@@ -85,9 +85,9 @@ namespace TurathApi.Controllersلآ
         // DELETE: api/Book/{id}
         // Delete seller's own book
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(Guid id)
+        public async Task<IActionResult> Delete(int id)
         {
-            var sellerId = Guid.Parse("414c784b-4c47-4684-838c-22a905580d64");
+            const int sellerId = 1;
 
             var book = await _context.Books
                 .FirstOrDefaultAsync(
