@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
-namespace Turath.src.auth
+namespace TurathApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]

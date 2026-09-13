@@ -2,7 +2,7 @@
 using System.Security.Claims;
 using System.Threading.Tasks;
 
-namespace Turath.src.auth
+namespace TurathApi.Middlewares
 {
     public class FakeAuthMiddleware
     {
