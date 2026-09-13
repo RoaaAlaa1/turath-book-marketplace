@@ -15,6 +15,10 @@ namespace TurathApi.Data
         public DbSet<Order> Orders => Set<Order>();
         public DbSet<OrderItem> OrderItems => Set<OrderItem>();
 
+        public DbSet<Book> Books => Set<Book>();
+        public DbSet<User> Users => Set<User>();
+        public DbSet<Category> Categories => Set<Category>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
