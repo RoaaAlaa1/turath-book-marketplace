@@ -1,170 +1,88 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
+using TurathApi.DTOs;
 using TurathApi.Models;
-using Microsoft.AspNetCore.Mvc;
 
 namespace TurathApi.Controllers
 {
-    public class ReviewsController : Controller
+    [ApiController]
+    [Route("api/[controller]")]
+    public class ReviewsController : ControllerBase
     {
         private readonly AppDbContext _context;
-        private readonly ILogger<ReviewsController> _logger;
 
-        public ReviewsController(AppDbContext context, ILogger<ReviewsController> logger)
+        public ReviewsController(AppDbContext context)
         {
             _context = context;
-            _logger = logger;
         }
 
-        // GET: Reviews
-        public async Task<IActionResult> Index()
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Review>>> GetReviews()
         {
-            try
-            {
-                var reviews = await _context.Reviews.AsNoTracking().ToListAsync();
-                return View(reviews);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving reviews: {Message}", ex.Message);
-                return RedirectToAction("Error");
-            }
+            var reviews = await _context.Reviews.AsNoTracking().ToListAsync();
+            return Ok(reviews);
         }
 
-        // GET: Reviews/Details/5
-        public async Task<IActionResult> Details(int id)
+        [HttpGet("{id:int}")]
+        public async Task<ActionResult<Review>> GetReview(int id)
         {
-            try
+            var review = await _context.Reviews.FindAsync(id);
+            if (review == null)
             {
-                var review = await _context.Reviews.FindAsync(id);
-
-                if (review == null)
-                {
-                    return NotFound();
-                }
-
-                return View(review);
+                return NotFound(new { message = "Review not found" });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving review with id: {ReviewId}", id);
-                return RedirectToAction("Error");
-            }
+
+            return Ok(review);
         }
 
-        // GET: Reviews/Create
-        public IActionResult Create()
-        {
-            return View();
-        }
-
-        // POST: Reviews/Create
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Reviews review)
+        public async Task<ActionResult<Review>> CreateReview(CreateReviewDto dto)
         {
-            try
+            var review = new Review
             {
-                if (ModelState.IsValid)
-                {
-                    _context.Reviews.Add(review);
-                    await _context.SaveChangesAsync();
-                    return RedirectToAction(nameof(Index));
-                }
-                return View(review);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating review");
-                return View(review);
-            }
+                CustomerId = dto.CustomerId,
+                BookId = dto.BookId,
+                Rating = dto.Rating,
+                Comment = dto.Comment,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Reviews.Add(review);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetReview), new { id = review.Id }, review);
         }
 
-        // GET: Reviews/Edit/5
-        public async Task<IActionResult> Edit(int id)
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> UpdateReview(int id, UpdateReviewDto dto)
         {
-            try
+            var review = await _context.Reviews.FindAsync(id);
+            if (review == null)
             {
-                var review = await _context.Reviews.FindAsync(id);
-                if (review == null)
-                {
-                    return NotFound();
-                }
-                return View(review);
+                return NotFound(new { message = "Review not found" });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving review for edit");
-                return RedirectToAction("Error");
-            }
+
+            review.Rating = dto.Rating;
+            review.Comment = dto.Comment;
+
+            await _context.SaveChangesAsync();
+            return Ok(review);
         }
 
-        // POST: Reviews/Edit/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, Reviews review)
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> DeleteReview(int id)
         {
-            if (id != review.id)
+            var review = await _context.Reviews.FindAsync(id);
+            if (review == null)
             {
-                return NotFound();
+                return NotFound(new { message = "Review not found" });
             }
 
-            try
-            {
-                if (ModelState.IsValid)
-                {
-                    _context.Reviews.Update(review);
-                    await _context.SaveChangesAsync();
-                    return RedirectToAction(nameof(Index));
-                }
-                return View(review);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating review");
-                return View(review);
-            }
-        }
+            _context.Reviews.Remove(review);
+            await _context.SaveChangesAsync();
 
-        // GET: Reviews/Delete/5
-        public async Task<IActionResult> Delete(int id)
-        {
-            try
-            {
-                var review = await _context.Reviews.FindAsync(id);
-                if (review == null)
-                {
-                    return NotFound();
-                }
-                return View(review);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving review for delete");
-                return RedirectToAction("Error");
-            }
-        }
-
-        // POST: Reviews/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            try
-            {
-                var review = await _context.Reviews.FindAsync(id);
-                if (review != null)
-                {
-                    _context.Reviews.Remove(review);
-                    await _context.SaveChangesAsync();
-                }
-                return RedirectToAction(nameof(Index));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting review");
-                return RedirectToAction("Error");
-            }
+            return NoContent();
         }
     }
 }

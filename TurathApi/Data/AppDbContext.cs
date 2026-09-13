@@ -9,28 +9,49 @@ namespace TurathApi.Data
         {
         }
 
-        public DbSet<Reviews> Reviews { get; set; }
-    public class ApplicationDbContext : DbContext
-    {
-        public ApplicationDbContext()
-        {
-        }
+        public DbSet<Review> Reviews => Set<Review>();
+        public DbSet<Cart> Carts => Set<Cart>();
+        public DbSet<CartItem> CartItems => Set<CartItem>();
+        public DbSet<Order> Orders => Set<Order>();
+        public DbSet<OrderItem> OrderItems => Set<OrderItem>();
 
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-        }
+            base.OnModelCreating(modelBuilder);
 
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            if (!optionsBuilder.IsConfigured)
+            modelBuilder.Entity<Review>(entity =>
             {
-                optionsBuilder.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=RebookDb;Trusted_Connection=True;MultipleActiveResultSets=true");
-            }
-        }
+                entity.ToTable("Reviews");
+                entity.HasKey(r => r.Id);
+                entity.Property(r => r.Id).HasColumnName("id");
+                entity.Property(r => r.CustomerId).HasColumnName("customer_id");
+                entity.Property(r => r.BookId).HasColumnName("book_id");
+                entity.Property(r => r.Rating).HasColumnName("rating");
+                entity.Property(r => r.Comment).HasColumnName("comment").IsRequired();
+                entity.Property(r => r.CreatedAt).HasColumnName("created_at");
+            });
 
-        public DbSet<Cart> Carts { get; set; }
-        public DbSet<CartItem> CartItems { get; set; }
-        public DbSet<Order> Orders { get; set; }
-        public DbSet<OrderItem> OrderItems { get; set; }
+            modelBuilder.Entity<Cart>(entity =>
+            {
+                entity.HasMany(c => c.CartItems)
+                    .WithOne(i => i.Cart)
+                    .HasForeignKey(i => i.CartId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<Order>(entity =>
+            {
+                entity.Property(o => o.Total).HasPrecision(18, 2);
+                entity.HasMany(o => o.OrderItems)
+                    .WithOne(i => i.Order)
+                    .HasForeignKey(i => i.OrderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<OrderItem>(entity =>
+            {
+                entity.Property(i => i.Price).HasPrecision(18, 2);
+            });
+        }
     }
 }
