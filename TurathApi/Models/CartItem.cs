@@ -1,13 +1,15 @@
-﻿namespace TurathApi.Models
-{
-    using System;
+﻿using System.Text.Json.Serialization;
 
+namespace TurathApi.Models
+{
     public class CartItem
     {
         public Guid Id { get; set; } = Guid.NewGuid();
 
         public Guid CartId { get; set; }
-        public Cart Cart { get; set; }
+
+        [JsonIgnore]
+        public Cart Cart { get; set; } = null!;
 
         public Guid ProductId { get; set; }
         public int Quantity { get; set; }
