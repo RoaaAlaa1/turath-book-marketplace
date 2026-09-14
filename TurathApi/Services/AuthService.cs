@@ -51,6 +51,9 @@ namespace TurathApi.Services
                 };
             }
 
+            // إضافة دور Customer الافتراضي للمستخدم الجديد
+            await _userManager.AddToRoleAsync(user, "Customer");
+
             // توليد الـ Token للمستخدم بعد التسجيل
             var token = await GenerateJwtTokenAsync(user);
 
