@@ -1,20 +1,72 @@
-using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using TurathApi.Data;
- 
+using TurathApi.Models;
+using TurathApi.Services;
+
 var builder = WebApplication.CreateBuilder(args);
- 
+
+builder.Services.AddScoped<ChatbotToolService>();
+
+// Database Context
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
- 
+
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+// Identity Configuration (Hardened Security Defaults)
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+{
+    options.Password.RequireDigit = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireNonAlphanumeric = true;
+    options.Password.RequiredLength = 8;
+    options.User.RequireUniqueEmail = true;
+})
+.AddEntityFrameworkStores<AppDbContext>()
+.AddDefaultTokenProviders();
+
+// JWT Authentication Service Setup
+var jwtSettings = builder.Configuration.GetSection("Jwt");
+var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = true;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidateIssuer = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidateAudience = true,
+        ValidAudience = jwtSettings["Audience"],
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero
+    };
+});
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
- 
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -22,10 +74,36 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "Turath Book Marketplace API",
         Version = "v1",
-        Description = "REST API for the Turath book marketplace. Add new models in Models/, register them on AppDbContext, then add a controller under Controllers/."
+        Description = "REST API for the Turath book marketplace."
+    });
+
+    // ≈÷«›… “— Authorize ›Ì Ê«ÃÂ… Swagger ·«Œ »«— «·‹ Tokens
+    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Enter JWT Bearer token"
+    });
+
+    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
     });
 });
- 
+
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options =>
 {
@@ -45,9 +123,9 @@ builder.Services.AddCors(options =>
         }
     });
 });
- 
+
 var app = builder.Build();
- 
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -57,13 +135,14 @@ if (app.Environment.IsDevelopment())
         options.RoutePrefix = string.Empty;
     });
 }
- 
+
 app.UseHttpsRedirection();
 app.UseCors("Frontend");
+
+// Auth Middleware Pipeline Order
+app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
- 
+
 app.Run();
- 
-
-

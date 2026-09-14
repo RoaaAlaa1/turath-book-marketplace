@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TurathApi.Data;
 
@@ -11,9 +12,11 @@ using TurathApi.Data;
 namespace TurathApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260913214343_AddIdentityTables")]
+    partial class AddIdentityTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -458,33 +461,6 @@ namespace TurathApi.Migrations
                         });
                 });
 
-            modelBuilder.Entity("TurathApi.Models.CategoryRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("CategoryName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("RequestedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("SellerId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SellerId");
-
-                    b.ToTable("CategoryRequests");
-                });
-
             modelBuilder.Entity("TurathApi.Models.Comment", b =>
                 {
                     b.Property<int>("Id")
@@ -507,7 +483,6 @@ namespace TurathApi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Comments");
-               
                 });
 
             modelBuilder.Entity("TurathApi.Models.Order", b =>
@@ -669,17 +644,6 @@ namespace TurathApi.Migrations
                         .IsRequired();
 
                     b.Navigation("Cart");
-                });
-
-            modelBuilder.Entity("TurathApi.Models.CategoryRequest", b =>
-                {
-                    b.HasOne("TurathApi.Models.User", "Seller")
-                        .WithMany()
-                        .HasForeignKey("SellerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Seller");
                 });
 
             modelBuilder.Entity("TurathApi.Models.OrderItem", b =>
