@@ -1,9 +1,11 @@
+﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using TurathApi.Models;
 
 namespace TurathApi.Data
 {
-    public class AppDbContext : DbContext
+    // تحويل الكلاس ليورث من IdentityDbContext مع ApplicationUser
+    public class AppDbContext : IdentityDbContext<ApplicationUser>
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
@@ -16,9 +18,11 @@ namespace TurathApi.Data
         public DbSet<OrderItem> OrderItems => Set<OrderItem>();
         public DbSet<Book> Books => Set<Book>();
         public DbSet<Category> Categories => Set<Category>();
-
+        public DbSet<Comment> Comments { get; set; }
+        public DbSet<CategoryRequest> CategoryRequests => Set<CategoryRequest>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            // ضروري جداً لتسجيل جداول Identity الأساسية (AspNetUsers, AspNetRoles, ...)
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<Review>(entity =>
