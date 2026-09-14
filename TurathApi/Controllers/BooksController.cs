@@ -65,6 +65,7 @@ namespace TurathApi.Controllers
         {
             var book = await _context.Books
                 .Include(b => b.Category)
+                .Include(b => b.Reviews)
                 .FirstOrDefaultAsync(b => b.Id == id);
 
             if (book is null || book.ApprovalStatus != ApprovalStatus.Approved)

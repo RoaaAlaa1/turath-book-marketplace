@@ -42,5 +42,12 @@ namespace TurathApi.Models
         /// returned to customers — enforced in BooksController, not just here.
         /// </summary>
         public ApprovalStatus ApprovalStatus { get; set; }
+
+        /// <summary>
+        /// Reviews left on this book (Roaa's feature). Only populated when the
+        /// controller explicitly Includes it — empty on the list endpoint,
+        /// populated on the detail endpoint.
+        /// </summary>
+        public ICollection<Review> Reviews { get; set; } = new List<Review>();
     }
 }
