@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace TurathApi.Controllers
 {
@@ -8,30 +7,28 @@ namespace TurathApi.Controllers
     [ApiController]
     public class TestAuthController : ControllerBase
     {
-        // 1. Endpoint عامة - أي حد يقدر يوصلها من غير تسجيل دخول
-        [HttpGet("public")]
-        public IActionResult PublicEndpoint()
+        // 1. متاح لأي مستخدم يحمل دور Customer
+        [Authorize(Roles = "Customer")]
+        [HttpGet("customer-only")]
+        public IActionResult CustomerEndpoint()
         {
-            return Ok(new { message = "This is a public endpoint, anyone can access it!" });
+            return Ok(new { message = "Welcome Customer! You have access to this endpoint." });
         }
 
-        // 2. Endpoint محمية - لا يمكن الوصول إليها إلا بـ JWT Token صالحة
-        [Authorize]
-        [HttpGet("protected")]
-        public IActionResult ProtectedEndpoint()
+        // 2. متاح فقط للـ Seller
+        [Authorize(Roles = "Seller")]
+        [HttpGet("seller-only")]
+        public IActionResult SellerEndpoint()
         {
-            // استخراج بيانات المستخدم من الـ Claims الموجودة جوه التوكن
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var email = User.FindFirstValue(ClaimTypes.Email);
-            var firstName = User.FindFirst("firstName")?.Value;
+            return Ok(new { message = "Welcome Seller! You can manage your books here." });
+        }
 
-            return Ok(new
-            {
-                message = "Access granted! You are authorized.",
-                userId,
-                email,
-                firstName
-            });
+        // 3. متاح فقط للـ Admin
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin-only")]
+        public IActionResult AdminEndpoint()
+        {
+            return Ok(new { message = "Welcome Admin! System full access granted." });
         }
     }
 }
