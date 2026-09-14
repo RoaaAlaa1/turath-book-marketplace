@@ -9,27 +9,6 @@ using TurathApi.Data;
 using TurathApi.Models;
 using TurathApi.Services;
 
-<<<<<<< HEAD
-namespace TurathApi
-{
-    public class Program
-    {
-        public static void Main(string[] args)
-        {
-            var builder = WebApplication.CreateBuilder(args);
-
-            // تسجيل الكنترولرز والـ Views مع حل مشكلة الـ JSON Circular Reference
-            builder.Services.AddControllersWithViews()
-                .AddJsonOptions(options =>
-                {
-                    options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
-                });
-
-            // إعداد الاتصال بقاعدة البيانات
-            builder.Services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")
-                ?? "Server=(localdb)\\mssqllocaldb;Database=RebookDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true"));
-=======
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddScoped<ChatbotToolService>();
@@ -40,7 +19,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-// Identity Configuration (Hardened Security Defaults)
+// Identity Configuration
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     options.Password.RequireDigit = true;
@@ -79,7 +58,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddControllers()
+builder.Services.AddControllersWithViews()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
@@ -98,7 +77,6 @@ builder.Services.AddSwaggerGen(options =>
         Description = "REST API for the Turath book marketplace."
     });
 
-    // ����� �� Authorize �� ����� Swagger ������� ��� Tokens
     options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -158,27 +136,18 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseCors("Frontend");
+
+app.UseRouting();
 
 // Auth Middleware Pipeline Order
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
->>>>>>> b21604e709b97a38ad204c004fa9d31733422be5
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
-            var app = builder.Build();
-
-            app.UseStaticFiles();
-            app.UseRouting();
-
-            app.UseAuthorization();
-
-            app.MapControllerRoute(
-                name: "default",
-                pattern: "{controller=Home}/{action=Index}/{id?}");
-
-            app.Run();
-        }
-    }
-}
+app.Run();
