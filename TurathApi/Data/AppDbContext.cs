@@ -19,7 +19,7 @@ namespace TurathApi.Data
         public DbSet<Book> Books => Set<Book>();
         public DbSet<Category> Categories => Set<Category>();
         public DbSet<Comment> Comments { get; set; }
-
+        public DbSet<CategoryRequest> CategoryRequests => Set<CategoryRequest>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // ضروري جداً لتسجيل جداول Identity الأساسية (AspNetUsers, AspNetRoles, ...)
