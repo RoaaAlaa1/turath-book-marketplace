@@ -17,6 +17,8 @@ namespace TurathApi.Data
         public DbSet<Book> Books => Set<Book>();
         public DbSet<Category> Categories => Set<Category>();
  
+        public DbSet<CategoryRequest> CategoryRequests => Set<CategoryRequest>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TurathApi.Data;
 
@@ -11,9 +12,11 @@ using TurathApi.Data;
 namespace TurathApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260913234121_AddCategoryRequest")]
+    partial class AddCategoryRequest
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -24,147 +27,57 @@ namespace TurathApi.Migrations
 
             modelBuilder.Entity("TurathApi.Models.Book", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("AgeRating")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("age_rating");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ApprovalStatus")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("approval_status");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Author")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("author");
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("CategoryId")
-                        .HasColumnType("int")
-                        .HasColumnName("category_id");
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Condition")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("condition");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("description");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ImageUrl")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("image_url");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Price")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("price");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("Quantity")
-                        .HasColumnType("int")
-                        .HasColumnName("quantity");
+                        .HasColumnType("int");
 
-                    b.Property<int>("SellerId")
-                        .HasColumnType("int")
-                        .HasColumnName("seller_id");
+                    b.Property<Guid>("SellerId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("title");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
 
-                    b.ToTable("Books", (string)null);
+                    b.HasIndex("SellerId");
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            AgeRating = "All Ages",
-                            ApprovalStatus = "Approved",
-                            Author = "Paulo Coelho",
-                            CategoryId = 1,
-                            Condition = "LikeNew",
-                            Description = "A shepherd boy's journey to find treasure and discover his personal legend.",
-                            ImageUrl = "/images/books/the-alchemist.jpg",
-                            Price = 85.00m,
-                            Quantity = 4,
-                            SellerId = 1,
-                            Title = "The Alchemist"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            AgeRating = "All Ages",
-                            ApprovalStatus = "Approved",
-                            Author = "Robert C. Martin",
-                            CategoryId = 2,
-                            Condition = "Good",
-                            Description = "A handbook of agile software craftsmanship, covering principles and practices for writing readable, maintainable code.",
-                            ImageUrl = "/images/books/clean-code.jpg",
-                            Price = 220.00m,
-                            Quantity = 2,
-                            SellerId = 2,
-                            Title = "Clean Code"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            AgeRating = "8+",
-                            ApprovalStatus = "Approved",
-                            Author = "E. B. White",
-                            CategoryId = 3,
-                            Condition = "Acceptable",
-                            Description = "A classic story of friendship between a pig named Wilbur and a spider named Charlotte.",
-                            ImageUrl = "/images/books/charlottes-web.jpg",
-                            Price = 60.00m,
-                            Quantity = 6,
-                            SellerId = 3,
-                            Title = "Charlotte's Web"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            AgeRating = "16+",
-                            ApprovalStatus = "Approved",
-                            Author = "Yuval Noah Harari",
-                            CategoryId = 4,
-                            Condition = "Good",
-                            Description = "An exploration of how Homo sapiens came to dominate the world, from the cognitive revolution to today.",
-                            ImageUrl = "/images/books/sapiens.jpg",
-                            Price = 150.00m,
-                            Quantity = 3,
-                            SellerId = 1,
-                            Title = "Sapiens: A Brief History of Humankind"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            AgeRating = "All Ages",
-                            ApprovalStatus = "Pending",
-                            Author = "Unknown",
-                            CategoryId = 1,
-                            Condition = "Acceptable",
-                            Description = "Awaiting copyright verification before it can be listed publicly.",
-                            ImageUrl = "/images/books/placeholder.jpg",
-                            Price = 40.00m,
-                            Quantity = 1,
-                            SellerId = 2,
-                            Title = "Untitled Manuscript Draft"
-                        });
+                    b.ToTable("Books");
                 });
 
             modelBuilder.Entity("TurathApi.Models.Cart", b =>
@@ -206,47 +119,17 @@ namespace TurathApi.Migrations
 
             modelBuilder.Entity("TurathApi.Models.Category", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("description");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("name");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Categories", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Name = "Fiction"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Name = "Science & Technology"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Name = "Children's Books"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Name = "History"
-                        });
+                    b.ToTable("Categories");
                 });
 
             modelBuilder.Entity("TurathApi.Models.CategoryRequest", b =>
@@ -255,12 +138,18 @@ namespace TurathApi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("CategoryName")
+                    b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("RequestedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ReviewedBy")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("SellerId")
                         .HasColumnType("uniqueidentifier");
@@ -364,15 +253,54 @@ namespace TurathApi.Migrations
                     b.ToTable("Reviews", (string)null);
                 });
 
+            modelBuilder.Entity("TurathApi.Models.User", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Users");
+                });
+
             modelBuilder.Entity("TurathApi.Models.Book", b =>
                 {
                     b.HasOne("TurathApi.Models.Category", "Category")
-                        .WithMany("Books")
+                        .WithMany()
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TurathApi.Models.User", "Seller")
+                        .WithMany()
+                        .HasForeignKey("SellerId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Category");
+
+                    b.Navigation("Seller");
                 });
 
             modelBuilder.Entity("TurathApi.Models.CartItem", b =>
@@ -411,11 +339,6 @@ namespace TurathApi.Migrations
             modelBuilder.Entity("TurathApi.Models.Cart", b =>
                 {
                     b.Navigation("CartItems");
-                });
-
-            modelBuilder.Entity("TurathApi.Models.Category", b =>
-                {
-                    b.Navigation("Books");
                 });
 
             modelBuilder.Entity("TurathApi.Models.Order", b =>
