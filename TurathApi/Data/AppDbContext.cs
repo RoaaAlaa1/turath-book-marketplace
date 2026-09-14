@@ -20,7 +20,7 @@ namespace TurathApi.Data
         public DbSet<Book> Books => Set<Book>();
         public DbSet<Category> Categories => Set<Category>();
         public DbSet<Comment> Comments { get; set; }
-
+        public DbSet<CategoryRequest> CategoryRequests => Set<CategoryRequest>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // ضروري جداً لتسجيل جداول Identity الأساسية (AspNetUsers, AspNetRoles, ...)
@@ -108,6 +108,13 @@ namespace TurathApi.Data
                     .WithMany(c => c.Books)
                     .HasForeignKey(b => b.CategoryId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                // One-directional: Review has no navigation back to Book,
+                // it just uses the BookId column that already exists.
+                entity.HasMany(b => b.Reviews)
+                    .WithOne()
+                    .HasForeignKey(r => r.BookId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // Seed data — lets the rest of the team build against real rows immediately.
