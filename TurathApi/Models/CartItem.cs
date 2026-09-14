@@ -1,15 +1,19 @@
-﻿namespace TurathApi.Models
-{
-    using System;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
+namespace TurathApi.Models
+{
+    [Table("CartItems")]
     public class CartItem
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
+        [Key]
+        public int Id { get; set; }
 
-        public Guid CartId { get; set; }
-        public Cart Cart { get; set; }
+        [Column("CustomerId")]
+        public string CustomerId { get; set; } = string.Empty;
 
-        public Guid ProductId { get; set; }
+        public int ProductId { get; set; }
+
         public int Quantity { get; set; }
     }
 }

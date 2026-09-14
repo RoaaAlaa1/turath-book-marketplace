@@ -1,196 +1,127 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using TurathApi.Data;
-using TurathApi.Models;
 
-[Route("api/[controller]")]
-[ApiController]
-public class CartController : ControllerBase
+namespace TurathApi.Controllers
 {
-    private readonly ApplicationDbContext _context;
-
-    public CartController(ApplicationDbContext context)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class CartController : ControllerBase
     {
-        _context = context;
-    }
+        // قائمة مؤقتة في الذاكرة لتشغيل السلة بدون الحاجة لداتابيز حقيقية حالياً
+        private static readonly List<TempCartItem> _memoryCart = new();
 
-    // 1. عرض محتوى سلة المستخدم
-    [HttpGet("{customerId}")]
-    public async Task<IActionResult> GetCart(string customerId)
-    {
-        var cart = await _context.Carts
-            .Include(c => c.CartItems)
-            .FirstOrDefaultAsync(c => c.CustomerId == customerId);
-
-        if (cart == null)
+        // GET: api/Cart/1
+        [HttpGet("{customerId}")]
+        public IActionResult GetCart(string customerId)
         {
-            return NotFound(new { message = "Cart is empty or not found for this customer." });
+            var cartItems = _memoryCart.Where(c => c.CustomerId == customerId).ToList();
+            return Ok(new { cartItems });
         }
 
-        return Ok(cart);
-    }
-
-    // 2. إضافة منتج للسلة
-    [HttpPost("add")]
-    public async Task<IActionResult> AddToCart([FromBody] AddToCartDto dto)
-    {
-        var cart = await _context.Carts
-            .Include(c => c.CartItems)
-            .FirstOrDefaultAsync(c => c.CustomerId == dto.CustomerId);
-
-        if (cart == null)
+        // POST: api/Cart/add
+        [HttpPost("add")]
+        public IActionResult AddToCart([FromBody] AddToCartRequest request)
         {
-            cart = new Cart { CustomerId = dto.CustomerId };
-            _context.Carts.Add(cart);
-            await _context.SaveChangesAsync();
-        }
-
-        // نبحث هل المنتج موجود بالفعل في السلة ولا لأ
-        var cartItem = await _context.CartItems
-            .FirstOrDefaultAsync(i => i.CartId == cart.Id && i.ProductId == dto.ProductId);
-
-        if (cartItem != null)
-        {
-            cartItem.Quantity += dto.Quantity;
-            _context.CartItems.Update(cartItem);
-        }
-        else
-        {
-            cartItem = new CartItem
+            if (request == null || request.ProductId <= 0 || request.Quantity <= 0)
             {
-                CartId = cart.Id,
-                ProductId = dto.ProductId,
-                Quantity = dto.Quantity
-            };
-            _context.CartItems.Add(cartItem);
-        }
+                return BadRequest(new { message = "بيانات المنتج أو الكمية غير صحيحة" });
+            }
 
-        await _context.SaveChangesAsync();
-        return Ok(new { message = "Item added to cart successfully." });
-    }
-    // 3. تعديل كمية منتج في السلة
-    [HttpPut("update-item")]
-    public async Task<IActionResult> UpdateCartItem([FromBody] UpdateCartItemDto dto)
-    {
-        var cart = await _context.Carts
-            .FirstOrDefaultAsync(c => c.CustomerId == dto.CustomerId);
+            var existingItem = _memoryCart.FirstOrDefault(c => c.CustomerId == request.CustomerId && c.ProductId == request.ProductId);
 
-        if (cart == null)
-        {
-            return NotFound(new { message = "Cart not found." });
-        }
-
-        var cartItem = await _context.CartItems
-            .FirstOrDefaultAsync(i => i.CartId == cart.Id && i.ProductId == dto.ProductId);
-
-        if (cartItem == null)
-        {
-            return NotFound(new { message = "Item not found in cart." });
-        }
-
-        if (dto.Quantity <= 0)
-        {
-            _context.CartItems.Remove(cartItem);
-        }
-        else
-        {
-            cartItem.Quantity = dto.Quantity;
-            _context.CartItems.Update(cartItem);
-        }
-
-        await _context.SaveChangesAsync();
-        return Ok(new { message = "Cart updated successfully." });
-    }
-
-    // 4. حذف منتج معين من السلة
-    [HttpDelete("remove-item")]
-    public async Task<IActionResult> RemoveCartItem([FromBody] RemoveCartItemDto dto)
-    {
-        var cart = await _context.Carts
-            .Include(c => c.CartItems)
-            .FirstOrDefaultAsync(c => c.CustomerId == dto.CustomerId);
-
-        if (cart == null)
-        {
-            return NotFound(new { message = "Cart not found." });
-        }
-
-        var cartItem = cart.CartItems.FirstOrDefault(i => i.ProductId == dto.ProductId);
-        if (cartItem == null)
-        {
-            return NotFound(new { message = "Item not found in cart." });
-        }
-
-        _context.CartItems.Remove(cartItem);
-        await _context.SaveChangesAsync();
-
-        return Ok(new { message = "Item removed from cart successfully." });
-    }
-
-    // 5. إتمام الشراء (Checkout Flow) وتحويل السلة لـ Order
-    [HttpPost("checkout")]
-    public async Task<IActionResult> Checkout([FromBody] CheckoutDto dto)
-    {
-        var cart = await _context.Carts
-            .Include(c => c.CartItems)
-            .FirstOrDefaultAsync(c => c.CustomerId == dto.CustomerId);
-
-        if (cart == null || !cart.CartItems.Any())
-        {
-            return BadRequest(new { message = "Cart is empty, cannot checkout." });
-        }
-
-        decimal totalAmount = cart.CartItems.Sum(item => item.Quantity * 10); // سعر مؤقت
-
-        var order = new Order
-        {
-            CustomerId = dto.CustomerId,
-            Total = totalAmount,
-            Status = "Pending",
-            CreatedAt = DateTime.UtcNow
-        };
-
-        foreach (var cartItem in cart.CartItems)
-        {
-            order.OrderItems.Add(new OrderItem
+            if (existingItem != null)
             {
-                ProductId = cartItem.ProductId,
-                Quantity = cartItem.Quantity,
-                Price = 10
-            });
+                existingItem.Quantity += request.Quantity;
+            }
+            else
+            {
+                _memoryCart.Add(new TempCartItem
+                {
+                    Id = _memoryCart.Count + 1,
+                    CustomerId = request.CustomerId,
+                    ProductId = request.ProductId,
+                    Quantity = request.Quantity
+                });
+            }
+
+            return Ok(new { message = "تمت إضافة المنتج إلى السلة بنجاح! (وضع مؤقت)" });
         }
 
-        _context.Orders.Add(order);
-        _context.CartItems.RemoveRange(cart.CartItems);
+        // PUT: api/Cart/update-item
+        [HttpPut("update-item")]
+        public IActionResult UpdateItem([FromBody] UpdateCartItemRequest request)
+        {
+            var item = _memoryCart.FirstOrDefault(c => c.CustomerId == request.CustomerId && c.ProductId == request.ProductId);
+            if (item == null) return NotFound(new { message = "العنصر غير موجود" });
 
-        await _context.SaveChangesAsync();
+            if (request.Quantity <= 0)
+            {
+                _memoryCart.Remove(item);
+            }
+            else
+            {
+                item.Quantity = request.Quantity;
+            }
 
-        return Ok(new { message = "Checkout completed successfully.", orderId = order.Id });
+            return Ok(new { message = "تم التحديث بنجاح" });
+        }
+
+        // DELETE: api/Cart/remove-item
+        [HttpDelete("remove-item")]
+        public IActionResult RemoveItem([FromBody] RemoveCartItemRequest request)
+        {
+            var item = _memoryCart.FirstOrDefault(c => c.CustomerId == request.CustomerId && c.ProductId == request.ProductId);
+            if (item != null)
+            {
+                _memoryCart.Remove(item);
+            }
+            return Ok(new { message = "تم الحذف بنجاح" });
+        }
+
+        // POST: api/Cart/checkout
+        [HttpPost("checkout")]
+        public IActionResult Checkout([FromBody] CheckoutRequest request)
+        {
+            var items = _memoryCart.Where(c => c.CustomerId == request.CustomerId).ToList();
+            foreach (var item in items)
+            {
+                _memoryCart.Remove(item);
+            }
+
+            return Ok(new { message = "تم إتمام الطلب بنجاح", orderId = new Random().Next(1000, 9999) });
+        }
     }
-}
 
-// الـ DTOs الخاصة باستقبال البيانات
-public class AddToCartDto
-{
-    public string CustomerId { get; set; }
-    public Guid ProductId { get; set; }
-    public int Quantity { get; set; }
-}
+    // نماذج البيانات المؤقتة
+    public class TempCartItem
+    {
+        public int Id { get; set; }
+        public string CustomerId { get; set; } = "1";
+        public int ProductId { get; set; }
+        public int Quantity { get; set; }
+    }
 
-public class UpdateCartItemDto
-{
-    public string CustomerId { get; set; }
-    public Guid ProductId { get; set; }
-    public int Quantity { get; set; }
-}
+    public class AddToCartRequest
+    {
+        public string CustomerId { get; set; } = "1";
+        public int ProductId { get; set; }
+        public int Quantity { get; set; }
+    }
 
-public class RemoveCartItemDto
-{
-    public string CustomerId { get; set; }
-    public Guid ProductId { get; set; }
-}
+    public class UpdateCartItemRequest
+    {
+        public string CustomerId { get; set; } = "1";
+        public int ProductId { get; set; }
+        public int Quantity { get; set; }
+    }
 
-public class CheckoutDto
-{
-    public string CustomerId { get; set; }
+    public class RemoveCartItemRequest
+    {
+        public string CustomerId { get; set; } = "1";
+        public int ProductId { get; set; }
+    }
+
+    public class CheckoutRequest
+    {
+        public string CustomerId { get; set; } = "1";
+    }
 }
