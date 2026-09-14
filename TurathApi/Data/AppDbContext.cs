@@ -12,6 +12,7 @@ namespace TurathApi.Data
         }
 
         public DbSet<Review> Reviews => Set<Review>();
+        public DbSet<SellerRequest> SellerRequests { get; set; }
         public DbSet<Cart> Carts => Set<Cart>();
         public DbSet<CartItem> CartItems => Set<CartItem>();
         public DbSet<Order> Orders => Set<Order>();
@@ -25,6 +26,24 @@ namespace TurathApi.Data
             // ضروري جداً لتسجيل جداول Identity الأساسية (AspNetUsers, AspNetRoles, ...)
             base.OnModelCreating(modelBuilder);
 
+            // 1. ضبط جدول SellerRequests
+            modelBuilder.Entity<SellerRequest>(entity =>
+            {
+                entity.ToTable("SellerRequests");
+                entity.HasKey(r => r.Id);
+                entity.Property(r => r.Id).HasColumnName("id");
+                entity.Property(r => r.UserId).HasColumnName("user_id").IsRequired();
+                entity.Property(r => r.Status).HasColumnName("status").HasConversion<string>();
+                entity.Property(r => r.RequestedAt).HasColumnName("requested_at");
+                entity.Property(r => r.ProcessedAt).HasColumnName("processed_at");
+
+                entity.HasOne(r => r.User)
+                    .WithMany()
+                    .HasForeignKey(r => r.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // 2. ضبط باقي الجداول
             modelBuilder.Entity<Review>(entity =>
             {
                 entity.ToTable("Reviews");
