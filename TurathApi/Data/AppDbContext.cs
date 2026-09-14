@@ -1,6 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using TurathApi.Models;
- 
+
 namespace TurathApi.Data
 {
     public class AppDbContext : DbContext
@@ -8,7 +8,7 @@ namespace TurathApi.Data
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
         }
- 
+
         public DbSet<Review> Reviews => Set<Review>();
         public DbSet<Cart> Carts => Set<Cart>();
         public DbSet<CartItem> CartItems => Set<CartItem>();
@@ -16,11 +16,11 @@ namespace TurathApi.Data
         public DbSet<OrderItem> OrderItems => Set<OrderItem>();
         public DbSet<Book> Books => Set<Book>();
         public DbSet<Category> Categories => Set<Category>();
- 
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
- 
+
             modelBuilder.Entity<Review>(entity =>
             {
                 entity.ToTable("Reviews");
@@ -32,7 +32,7 @@ namespace TurathApi.Data
                 entity.Property(r => r.Comment).HasColumnName("comment").IsRequired();
                 entity.Property(r => r.CreatedAt).HasColumnName("created_at");
             });
- 
+
             modelBuilder.Entity<Cart>(entity =>
             {
                 entity.HasMany(c => c.CartItems)
@@ -40,7 +40,7 @@ namespace TurathApi.Data
                     .HasForeignKey(i => i.CartId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
- 
+
             modelBuilder.Entity<Order>(entity =>
             {
                 entity.Property(o => o.Total).HasPrecision(18, 2);
@@ -49,12 +49,12 @@ namespace TurathApi.Data
                     .HasForeignKey(i => i.OrderId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
- 
+
             modelBuilder.Entity<OrderItem>(entity =>
             {
                 entity.Property(i => i.Price).HasPrecision(18, 2);
             });
- 
+
             modelBuilder.Entity<Category>(entity =>
             {
                 entity.ToTable("Categories");
@@ -63,7 +63,7 @@ namespace TurathApi.Data
                 entity.Property(c => c.Name).HasColumnName("name").IsRequired();
                 entity.Property(c => c.Description).HasColumnName("description");
             });
- 
+
             modelBuilder.Entity<Book>(entity =>
             {
                 entity.ToTable("Books");
@@ -80,13 +80,20 @@ namespace TurathApi.Data
                 entity.Property(b => b.Condition).HasColumnName("condition").HasConversion<string>();
                 entity.Property(b => b.AgeRating).HasColumnName("age_rating");
                 entity.Property(b => b.ApprovalStatus).HasColumnName("approval_status").HasConversion<string>();
- 
+
                 entity.HasOne(b => b.Category)
                     .WithMany(c => c.Books)
                     .HasForeignKey(b => b.CategoryId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                // One-directional: Review has no navigation back to Book,
+                // it just uses the BookId column that already exists.
+                entity.HasMany(b => b.Reviews)
+                    .WithOne()
+                    .HasForeignKey(r => r.BookId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
- 
+
             // Seed data — lets the rest of the team build against real rows immediately.
             modelBuilder.Entity<Category>().HasData(
                 new Category { Id = 1, Name = "Fiction" },
@@ -94,7 +101,7 @@ namespace TurathApi.Data
                 new Category { Id = 3, Name = "Children's Books" },
                 new Category { Id = 4, Name = "History" }
             );
- 
+
             modelBuilder.Entity<Book>().HasData(
                 new Book
                 {
@@ -175,6 +182,3 @@ namespace TurathApi.Data
         }
     }
 }
- 
-
-
