@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
 using TurathApi.Models;
+using TurathApi.Models.Enums;
 
 namespace TurathApi.Controllers
 {
@@ -20,6 +21,8 @@ namespace TurathApi.Controllers
             _userManager = userManager;
             _context = context;
         }
+
+        // ==================== USER MANAGEMENT ====================
 
         // 1. عرض قائمة جميع المستخدمين
         [HttpGet("users")]
@@ -49,24 +52,27 @@ namespace TurathApi.Controllers
                 return NotFound("المستخدم غير موجود.");
             }
 
-            // التأكد من تفعيل خاصية الحظر للمستخدم
+
             await _userManager.SetLockoutEnabledAsync(user, true);
 
             var isCurrentlySuspended = user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow;
 
             if (isCurrentlySuspended)
+           
             {
-                // إزالة الحظر (تفعيل الحساب)
+            
                 await _userManager.SetLockoutEndDateAsync(user, null);
                 return Ok(new { message = $"تم تفعيل حساب المستخدم {user.UserName} بنجاح." });
             }
             else
             {
-                // حظر الحساب حتى سنة 2099 (تعليق الحساب)
+                
                 await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.UtcNow.AddYears(100));
                 return Ok(new { message = $"تم حظر/تعليق حساب المستخدم {user.UserName} بنجاح." });
             }
         }
+
+        // ==================== CATEGORY REQUESTS MANAGEMENT ====================
 
         // 3. عرض جميع طلبات الأقسام المعلقة (Pending)
         [HttpGet("category-requests")]
@@ -97,10 +103,10 @@ namespace TurathApi.Controllers
                 return NotFound("الطلب غير موجود.");
             }
 
-            // تحويل حالة الطلب إلى Approved
+
             request.Status = "Approved";
 
-            // إضافة القسم الجديد تلقائياً لجدول Categories
+
             var newCategory = new Category
             {
                 Name = request.CategoryName
@@ -126,6 +132,60 @@ namespace TurathApi.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { message = $"تم رفض طلب القسم '{request.CategoryName}'." });
+        }
+
+        // ==================== BOOK APPROVAL QUEUE ====================
+        // 6. عرض قائمة الكتب المعلقة بانتظار موافقة الأدمن
+        // 6. عرض قائمة الكتب المعلقة بانتظار موافقة الأدمن
+        [HttpGet("books/pending")]
+        public async Task<IActionResult> GetPendingBooks()
+        {
+            var pendingBooks = await _context.Books
+                .Where(b => b.ApprovalStatus == ApprovalStatus.Pending)
+                .Select(b => new
+                {
+                    b.Id,
+                    b.Title,
+                    b.Author,
+                    b.Price,
+                    b.SellerId,
+                    ApprovalStatus = b.ApprovalStatus.ToString()
+                })
+                .ToListAsync();
+
+            return Ok(pendingBooks);
+        }
+
+        // 7. الموافقة على نشر كتاب جديد
+        [HttpPost("books/{id}/approve")]
+        public async Task<IActionResult> ApproveBook(int id)
+        {
+            var book = await _context.Books.FindAsync(id);
+            if (book == null)
+            {
+                return NotFound("الكتاب غير موجود.");
+            }
+
+            book.ApprovalStatus = ApprovalStatus.Approved;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = $"تمت الموافقة على نشر الكتاب '{book.Title}' بنجاح." });
+        }
+
+        // 8. رفض نشر كتاب
+        [HttpPost("books/{id}/reject")]
+        public async Task<IActionResult> RejectBook(int id)
+        {
+            var book = await _context.Books.FindAsync(id);
+            if (book == null)
+            {
+                return NotFound("الكتاب غير موجود.");
+            }
+
+            book.ApprovalStatus = ApprovalStatus.Rejected;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = $"تم رفض نشر الكتاب '{book.Title}'." });
         }
     }
 }
