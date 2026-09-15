@@ -21,6 +21,7 @@ namespace TurathApi.Data
         public DbSet<Category> Categories => Set<Category>();
         public DbSet<Comment> Comments { get; set; }
         public DbSet<CategoryRequest> CategoryRequests => Set<CategoryRequest>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // ضروري جداً لتسجيل جداول Identity الأساسية (AspNetUsers, AspNetRoles, ...)
@@ -43,7 +44,16 @@ namespace TurathApi.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // 2. ضبط باقي الجداول
+            // 2. ضبط جدول CategoryRequests لمنع مسارات الحذف المتتابعة المتعددة (Cascade Paths Cycle)
+            modelBuilder.Entity<CategoryRequest>(entity =>
+            {
+                entity.HasOne(cr => cr.Seller)
+                    .WithMany()
+                    .HasForeignKey(cr => cr.SellerId)
+                    .OnDelete(DeleteBehavior.Restrict); // تعيين الحذف إلى Restrict لمنع خطأ FK_CategoryRequests
+            });
+
+            // 3. ضبط باقي الجداول
             modelBuilder.Entity<Review>(entity =>
             {
                 entity.ToTable("Reviews");

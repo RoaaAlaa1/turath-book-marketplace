@@ -9,10 +9,10 @@ namespace TurathApi.Models
         public Guid Id { get; set; }
 
         [Required]
-        public Guid SellerId { get; set; }
+        public string SellerId { get; set; } = string.Empty;
 
-        [ForeignKey("SellerId")]
-        public User? Seller { get; set; }
+        [ForeignKey(nameof(SellerId))]
+        public ApplicationUser? Seller { get; set; }
 
         [Required]
         public string CategoryName { get; set; }

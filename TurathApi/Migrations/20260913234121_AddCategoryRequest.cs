@@ -16,7 +16,7 @@ namespace TurathApi.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    SellerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    SellerId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     RequestedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -27,11 +27,11 @@ namespace TurathApi.Migrations
                 {
                     table.PrimaryKey("PK_CategoryRequests", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_CategoryRequests_Users_SellerId",
+                        name: "FK_CategoryRequests_AspNetUsers_SellerId",
                         column: x => x.SellerId,
-                        principalTable: "Users",
+                        principalTable: "AspNetUsers",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.NoAction);
                 });
 
             migrationBuilder.CreateIndex(
