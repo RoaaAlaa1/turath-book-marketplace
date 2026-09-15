@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using TurathApi.Data;
 using TurathApi.Models;
-using TurathApi.DTOs;
+using TurathApi.DTOs.Categories;
 
 namespace TurathApi.Controllers
 {

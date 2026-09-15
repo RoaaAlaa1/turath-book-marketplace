@@ -8,16 +8,15 @@ using System.Text.Json.Serialization;
 using TurathApi.Data;
 using TurathApi.Models;
 using TurathApi.Services;
+using TurathApi.Services.Implementations;
+using TurathApi.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddScoped<ChatbotToolService>();
 
 // Database Context
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddScoped<IAuthService, AuthService>();
 
 // Identity Configuration (Hardened Security Defaults)
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -32,6 +31,13 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
+//  Application Business Services
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IBookService, BookService>();
+builder.Services.AddScoped<ICartService, CartService>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
+builder.Services.AddScoped<ChatbotToolService>();
+
 // JWT Authentication Service Setup
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
@@ -43,7 +49,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = true;
+    options.RequireHttpsMetadata = false; // Must be false in local development to prevent 401 errors when running on HTTP
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -57,7 +63,7 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
 });
-
+// Controllers & JSON Formatting
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -67,6 +73,7 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
+// Swagger & OpenAPI Documentation
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -77,7 +84,7 @@ builder.Services.AddSwaggerGen(options =>
         Description = "REST API for the Turath book marketplace."
     });
 
-    // ÅÖÇÝÉ ÒÑ Authorize Ýí æÇÌåÉ Swagger áÇÎÊÈÇÑ ÇáÜ Tokens
+    // Configure JWT Bearer Authorization in Swagger UI
     options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -85,7 +92,7 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "Bearer",
         BearerFormat = "JWT",
         In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Description = "Enter JWT Bearer token"
+        Description = "Paste raw JWT token here (Bearer prefix will be added automatically)"
     });
 
     options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
@@ -104,6 +111,7 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+// CORS Configuration
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options =>
 {
@@ -141,6 +149,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+// HTTP Request Pipeline Order
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

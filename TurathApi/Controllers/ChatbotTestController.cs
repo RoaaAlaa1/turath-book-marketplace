@@ -3,38 +3,34 @@ using TurathApi.Services;
 
 namespace TurathApi.Controllers
 {
-    // Temporary controller for testing the chatbot's stubbed/real tool functions
-    // directly in Swagger, before wiring up the actual Claude API integration.
     [ApiController]
     [Route("api/[controller]")]
     public class ChatbotTestController : ControllerBase
     {
         private readonly ChatbotToolService _toolService;
-        private readonly ILogger<ChatbotTestController> _logger;
 
-        public ChatbotTestController(ChatbotToolService toolService, ILogger<ChatbotTestController> logger)
+        public ChatbotTestController(ChatbotToolService toolService)
         {
             _toolService = toolService;
-            _logger = logger;
         }
 
-        // GET: api/chatbottest/test-search?query=fantasy&category=Fiction
+        // GET: api/ChatbotTest/test-search?query=Code&category=Science+%26+Technology&maxPrice=300
         [HttpGet("test-search")]
-        public async Task<IActionResult> TestSearch(string query, string? category = null)
+        public async Task<IActionResult> TestSearch(
+            [FromQuery] string? query,
+            [FromQuery] string? category = null,
+            [FromQuery] decimal? maxPrice = null)
         {
-            try
-            {
-                var result = await _toolService.SearchBooks(query, category);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error testing search_books tool");
-                return StatusCode(500, new { message = "Error searching books", error = ex.Message });
-            }
+            var results = await _toolService.SearchBooks(query, category, maxPrice);
+            return Ok(results);
         }
 
-        
-        
+        // GET: api/ChatbotTest/test-book-details/1
+        [HttpGet("test-book-details/{id:int}")]
+        public async Task<IActionResult> TestBookDetails(int id)
+        {
+            var result = await _toolService.GetBookDetails(id);
+            return result == null ? NotFound(new { message = "Book not found or unapproved." }) : Ok(result);
+        }
     }
 }
