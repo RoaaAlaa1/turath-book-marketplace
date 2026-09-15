@@ -1,12 +1,9 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace TurathApi.DTOs
+namespace TurathApi.DTOs.Comments
 {
-    public class CreateCommentDto
+    public class UpdateCommentDto
     {
-        [Required]
-        public int UserId { get; set; }
-
         [Required]
         [MaxLength(1000)]
         public string Content { get; set; } = string.Empty;

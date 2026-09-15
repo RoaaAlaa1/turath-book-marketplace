@@ -1,6 +1,6 @@
 ﻿using TurathApi.DTOs.Auth;
 
-namespace TurathApi.Services
+namespace TurathApi.Services.Interfaces
 {
     public interface IAuthService
     {

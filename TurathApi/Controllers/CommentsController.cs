@@ -1,8 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
-using TurathApi.DTOs;
 using TurathApi.Models;
 using Microsoft.AspNetCore.Mvc;
+using TurathApi.DTOs.Comments;
 
 namespace TurathApi.Controllers
 {
