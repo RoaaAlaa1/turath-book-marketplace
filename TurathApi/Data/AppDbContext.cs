@@ -10,6 +10,7 @@ namespace TurathApi.Data
         {
         }
 
+        public DbSet<SupportTicket> SupportTickets { get; set; }
         public DbSet<Review> Reviews => Set<Review>();
         public DbSet<SellerRequest> SellerRequests { get; set; }
         public DbSet<Cart> Carts => Set<Cart>();

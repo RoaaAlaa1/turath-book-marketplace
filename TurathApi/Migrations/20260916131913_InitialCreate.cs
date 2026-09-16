@@ -82,21 +82,6 @@ namespace TurathApi.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "CategoryRequests",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    SellerId = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    CategoryName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    RequestedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_CategoryRequests", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "Comments",
                 columns: table => new
                 {
@@ -233,6 +218,49 @@ namespace TurathApi.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "CategoryRequests",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    SellerId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    CategoryName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    RequestedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CategoryRequests", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_CategoryRequests_AspNetUsers_SellerId",
+                        column: x => x.SellerId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SellerRequests",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    user_id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    status = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    requested_at = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    processed_at = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SellerRequests", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_SellerRequests_AspNetUsers_user_id",
+                        column: x => x.user_id,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "CartItems",
                 columns: table => new
                 {
@@ -306,6 +334,37 @@ namespace TurathApi.Migrations
                         principalTable: "Orders",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SupportTickets",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    CustomerId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    OrderId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    Subject = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Message = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    AdminResponse = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SupportTickets", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_SupportTickets_AspNetUsers_CustomerId",
+                        column: x => x.CustomerId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_SupportTickets_Orders_OrderId",
+                        column: x => x.OrderId,
+                        principalTable: "Orders",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -401,6 +460,11 @@ namespace TurathApi.Migrations
                 column: "CartId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_CategoryRequests_SellerId",
+                table: "CategoryRequests",
+                column: "SellerId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_OrderItems_OrderId",
                 table: "OrderItems",
                 column: "OrderId");
@@ -414,6 +478,21 @@ namespace TurathApi.Migrations
                 name: "IX_Reviews_customer_id",
                 table: "Reviews",
                 column: "customer_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SellerRequests_user_id",
+                table: "SellerRequests",
+                column: "user_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SupportTickets_CustomerId",
+                table: "SupportTickets",
+                column: "CustomerId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SupportTickets_OrderId",
+                table: "SupportTickets",
+                column: "OrderId");
         }
 
         /// <inheritdoc />
@@ -450,16 +529,22 @@ namespace TurathApi.Migrations
                 name: "Reviews");
 
             migrationBuilder.DropTable(
+                name: "SellerRequests");
+
+            migrationBuilder.DropTable(
+                name: "SupportTickets");
+
+            migrationBuilder.DropTable(
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
                 name: "Carts");
 
             migrationBuilder.DropTable(
-                name: "Orders");
+                name: "Books");
 
             migrationBuilder.DropTable(
-                name: "Books");
+                name: "Orders");
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");

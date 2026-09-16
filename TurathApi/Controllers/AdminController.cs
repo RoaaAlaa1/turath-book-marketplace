@@ -150,8 +150,7 @@ namespace TurathApi.Controllers
             return Ok(pendingBooks);
         }
 
-
-        // 7. عرض جميع الكتب للأدمن
+        // 7. Get all books for admin view
         [HttpGet("books")]
         public async Task<IActionResult> GetAllBooks()
         {
@@ -171,7 +170,7 @@ namespace TurathApi.Controllers
             return Ok(books);
         }
 
-        // 8. حذف كتاب من الكتالوج
+        // 8. Remove a book from the catalog
         [HttpDelete("books/{id}")]
         public async Task<IActionResult> RemoveBook(int id)
         {
@@ -181,7 +180,7 @@ namespace TurathApi.Controllers
 
             if (book == null)
             {
-                return NotFound("الكتاب غير موجود.");
+                return NotFound(new { message = "Book not found." });
             }
 
             _context.Reviews.RemoveRange(book.Reviews);
@@ -191,12 +190,11 @@ namespace TurathApi.Controllers
 
             return Ok(new
             {
-                message = $"تم حذف الكتاب '{book.Title}' بنجاح."
+                message = $"Book '{book.Title}' has been deleted successfully."
             });
         }
 
-
-        // 9. الموافقة على نشر كتاب جديد
+        // 9. Approve publication of a new book
         [HttpPost("books/{id}/approve")]
         public async Task<IActionResult> ApproveBook(int id)
         {
@@ -212,7 +210,7 @@ namespace TurathApi.Controllers
             return Ok(new { message = $"Book '{book.Title}' has been approved for publication successfully." });
         }
 
-        // 10. رفض نشر كتاب
+        // 10. Reject publication of a book
         [HttpPost("books/{id}/reject")]
         public async Task<IActionResult> RejectBook(int id)
         {
