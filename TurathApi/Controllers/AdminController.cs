@@ -10,7 +10,7 @@ namespace TurathApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin")] // متاح فقط للأدمن
+    [Authorize(Roles = "Admin")] // Admin only
     public class AdminController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> _userManager;
@@ -24,7 +24,7 @@ namespace TurathApi.Controllers
 
         // ==================== USER MANAGEMENT ====================
 
-        // 1. عرض قائمة جميع المستخدمين
+        // 1. List all users
         [HttpGet("users")]
         public async Task<IActionResult> GetAllUsers()
         {
@@ -42,39 +42,35 @@ namespace TurathApi.Controllers
             return Ok(users);
         }
 
-        // 2. تفعيل / إيقاف حساب مستخدم (Toggle Suspend/Activate)
+        // 2. Suspend / activate a user account (Toggle Suspend/Activate)
         [HttpPut("users/{userId}/toggle-status")]
         public async Task<IActionResult> ToggleUserStatus(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
-                return NotFound("المستخدم غير موجود.");
+                return NotFound("User not found.");
             }
-
 
             await _userManager.SetLockoutEnabledAsync(user, true);
 
             var isCurrentlySuspended = user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow;
 
             if (isCurrentlySuspended)
-           
             {
-            
                 await _userManager.SetLockoutEndDateAsync(user, null);
-                return Ok(new { message = $"تم تفعيل حساب المستخدم {user.UserName} بنجاح." });
+                return Ok(new { message = $"User {user.UserName} has been activated successfully." });
             }
             else
             {
-                
                 await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.UtcNow.AddYears(100));
-                return Ok(new { message = $"تم حظر/تعليق حساب المستخدم {user.UserName} بنجاح." });
+                return Ok(new { message = $"User {user.UserName} has been suspended successfully." });
             }
         }
 
         // ==================== CATEGORY REQUESTS MANAGEMENT ====================
 
-        // 3. عرض جميع طلبات الأقسام المعلقة (Pending)
+        // 3. List all pending category requests
         [HttpGet("category-requests")]
         public async Task<IActionResult> GetPendingCategoryRequests()
         {
@@ -93,19 +89,17 @@ namespace TurathApi.Controllers
             return Ok(requests);
         }
 
-        // 4. الموافقة على طلب قسم وإضافته تلقائياً لقائمة الأقسام الفعالة
+        // 4. Approve a category request and automatically add it to the active categories list
         [HttpPost("category-requests/{id}/approve")]
         public async Task<IActionResult> ApproveCategoryRequest(Guid id)
         {
             var request = await _context.CategoryRequests.FindAsync(id);
             if (request == null)
             {
-                return NotFound("الطلب غير موجود.");
+                return NotFound("Request not found.");
             }
 
-
             request.Status = "Approved";
-
 
             var newCategory = new Category
             {
@@ -115,28 +109,28 @@ namespace TurathApi.Controllers
             _context.Categories.Add(newCategory);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = $"تم قبول القسم '{request.CategoryName}' وإضافته بنجاح." });
+            return Ok(new { message = $"Category '{request.CategoryName}' has been approved and added successfully." });
         }
 
-        // 5. رفض طلب القسم
+        // 5. Reject a category request
         [HttpPost("category-requests/{id}/reject")]
         public async Task<IActionResult> RejectCategoryRequest(Guid id)
         {
             var request = await _context.CategoryRequests.FindAsync(id);
             if (request == null)
             {
-                return NotFound("الطلب غير موجود.");
+                return NotFound("Request not found.");
             }
 
             request.Status = "Rejected";
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = $"تم رفض طلب القسم '{request.CategoryName}'." });
+            return Ok(new { message = $"Category request '{request.CategoryName}' has been rejected." });
         }
 
         // ==================== BOOK APPROVAL QUEUE ====================
-        // 6. عرض قائمة الكتب المعلقة بانتظار موافقة الأدمن
-        // 6. عرض قائمة الكتب المعلقة بانتظار موافقة الأدمن
+
+        // 6. List books pending admin approval
         [HttpGet("books/pending")]
         public async Task<IActionResult> GetPendingBooks()
         {
@@ -156,8 +150,7 @@ namespace TurathApi.Controllers
             return Ok(pendingBooks);
         }
 
-
-        // 7. عرض جميع الكتب للأدمن
+        // 7. List all books for the admin
         [HttpGet("books")]
         public async Task<IActionResult> GetAllBooks()
         {
@@ -177,7 +170,7 @@ namespace TurathApi.Controllers
             return Ok(books);
         }
 
-        // 8. حذف كتاب من الكتالوج
+        // 8. Remove a book from the catalog
         [HttpDelete("books/{id}")]
         public async Task<IActionResult> RemoveBook(int id)
         {
@@ -187,8 +180,13 @@ namespace TurathApi.Controllers
 
             if (book == null)
             {
-                return NotFound("الكتاب غير موجود.");
+                return NotFound("Book not found.");
             }
+
+            var wishlistItems = await _context.WishlistItems
+                .Where(w => w.BookId == id)
+                .ToListAsync();
+            _context.WishlistItems.RemoveRange(wishlistItems);
 
             _context.Reviews.RemoveRange(book.Reviews);
             _context.Books.Remove(book);
@@ -197,41 +195,40 @@ namespace TurathApi.Controllers
 
             return Ok(new
             {
-                message = $"تم حذف الكتاب '{book.Title}' بنجاح."
+                message = $"Book '{book.Title}' has been deleted successfully."
             });
         }
 
-
-        // 9. الموافقة على نشر كتاب جديد
+        // 9. Approve a new book listing
         [HttpPost("books/{id}/approve")]
         public async Task<IActionResult> ApproveBook(int id)
         {
             var book = await _context.Books.FindAsync(id);
             if (book == null)
             {
-                return NotFound("الكتاب غير موجود.");
+                return NotFound("Book not found.");
             }
 
             book.ApprovalStatus = ApprovalStatus.Approved;
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = $"تمت الموافقة على نشر الكتاب '{book.Title}' بنجاح." });
+            return Ok(new { message = $"Book '{book.Title}' has been approved successfully." });
         }
 
-        // 10. رفض نشر كتاب
+        // 10. Reject a book listing
         [HttpPost("books/{id}/reject")]
         public async Task<IActionResult> RejectBook(int id)
         {
             var book = await _context.Books.FindAsync(id);
             if (book == null)
             {
-                return NotFound("الكتاب غير موجود.");
+                return NotFound("Book not found.");
             }
 
             book.ApprovalStatus = ApprovalStatus.Rejected;
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = $"تم رفض نشر الكتاب '{book.Title}'." });
+            return Ok(new { message = $"Book '{book.Title}' has been rejected." });
         }
     }
 }
