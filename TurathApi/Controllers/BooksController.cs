@@ -2,7 +2,6 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 using TurathApi.Data;
 using TurathApi.DTOs.Books;
 using TurathApi.Models;
@@ -86,7 +85,7 @@ namespace TurathApi.Controllers
                 .FirstOrDefaultAsync(b => b.Id == id);
 
             if (book is null || book.ApprovalStatus != ApprovalStatus.Approved)
-                return NotFound();
+                return NotFound(new { message = "Book not found." });
 
             var dto = new BookResponseDto
             {
@@ -105,7 +104,7 @@ namespace TurathApi.Controllers
                 ApprovalStatus = book.ApprovalStatus
             };
 
-            return Ok(book);
+            return Ok(dto);
         }
 
         // ==================== SELLER-OWNED BOOKS (PROTECTED) ====================
@@ -117,7 +116,7 @@ namespace TurathApi.Controllers
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!int.TryParse(userIdClaim, out int sellerId))
             {
-                return Unauthorized("„⁄—¯› «·„” Œœ„ €Ì— ’«·Õ.");
+                return Unauthorized(new { message = "Invalid user identifier." });
             }
 
             var books = await _context.Books
@@ -144,16 +143,14 @@ namespace TurathApi.Controllers
             return Ok(books);
         }
 
-
-        [Authorize]
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> Create(Book book)
+        public async Task<IActionResult> Create([FromBody] CreateBookDto dto)
         {
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!int.TryParse(userIdClaim, out int sellerId))
             {
-                return Unauthorized("„⁄—¯› «·„” Œœ„ €Ì— ’«·Õ.");
+                return Unauthorized(new { message = "Invalid user identifier." });
             }
 
             var book = new Book
@@ -172,22 +169,19 @@ namespace TurathApi.Controllers
             };
 
             _context.Books.Add(book);
-           
             await _context.SaveChangesAsync();
 
             return CreatedAtAction(nameof(GetById), new { id = book.Id }, book);
         }
 
-
-        [Authorize]
         [HttpPut("{id:int}")]
         [Authorize]
-        public async Task<IActionResult> Edit(int id, Book book)
+        public async Task<IActionResult> Edit(int id, [FromBody] CreateBookDto dto)
         {
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!int.TryParse(userIdClaim, out int sellerId))
             {
-                return Unauthorized("„⁄—¯› «·„” Œœ„ €Ì— ’«·Õ.");
+                return Unauthorized(new { message = "Invalid user identifier." });
             }
 
             var existingBook = await _context.Books
@@ -195,7 +189,7 @@ namespace TurathApi.Controllers
 
             if (existingBook == null)
             {
-                return NotFound("«·ﬂ «» €Ì— „ÊÃÊœ √Ê ·«  „·ﬂ ’·«ÕÌ…  ⁄œÌ·Â.");
+                return NotFound(new { message = "Book not found or you do not have permission to edit it." });
             }
 
             existingBook.Title = dto.Title;
@@ -207,7 +201,6 @@ namespace TurathApi.Controllers
             existingBook.Quantity = dto.Quantity;
             existingBook.CategoryId = dto.CategoryId;
             existingBook.ImageUrl = dto.ImageUrl;
-
             existingBook.ApprovalStatus = ApprovalStatus.Pending;
 
             await _context.SaveChangesAsync();
@@ -222,7 +215,7 @@ namespace TurathApi.Controllers
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!int.TryParse(userIdClaim, out int sellerId))
             {
-                return Unauthorized("„⁄—¯› «·„” Œœ„ €Ì— ’«·Õ.");
+                return Unauthorized(new { message = "Invalid user identifier." });
             }
 
             var book = await _context.Books
@@ -230,11 +223,10 @@ namespace TurathApi.Controllers
 
             if (book == null)
             {
-                return NotFound("«·ﬂ «» €Ì— „ÊÃÊœ √Ê ·«  „·ﬂ ’·«ÕÌ… Õ–›Â.");
+                return NotFound(new { message = "Book not found or you do not have permission to delete it." });
             }
 
             _context.Books.Remove(book);
-  
             await _context.SaveChangesAsync();
 
             return NoContent();

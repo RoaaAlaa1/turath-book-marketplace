@@ -29,7 +29,7 @@ namespace TurathApi.Controllers
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(customerId))
             {
-                return Unauthorized("ãÚÑøİ ÇáãÓÊÎÏã ÛíÑ ÕÇáÍ.");
+                return Unauthorized(new { message = "Invalid user identifier." });
             }
 
             var orders = await _context.Orders
@@ -52,7 +52,7 @@ namespace TurathApi.Controllers
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(customerId))
             {
-                return Unauthorized("ãÚÑøİ ÇáãÓÊÎÏã ÛíÑ ÕÇáÍ.");
+                return Unauthorized(new { message = "Invalid user identifier." });
             }
 
             var order = await _context.Orders
@@ -62,12 +62,12 @@ namespace TurathApi.Controllers
 
             if (order == null)
             {
-                return NotFound(new { message = "ÇáØáÈ ÛíÑ ãæÌæÏ Ãæ áÇ Êãáß ÕáÇÍíÉ ÇáæÕæá Åáíå." });
+                return NotFound(new { message = "Order not found or you do not have permission to access it." });
             }
 
             return Ok(order);
         }
-  
+
     }
 
 }

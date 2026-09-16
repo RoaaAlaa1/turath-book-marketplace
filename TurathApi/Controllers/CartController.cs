@@ -30,7 +30,7 @@ namespace TurathApi.Controllers
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(customerId))
             {
-                return Unauthorized("معرّف المستخدم غير صالح.");
+                return Unauthorized("Invalid user identifier.");
             }
 
             var cart = await _context.Carts
@@ -39,7 +39,7 @@ namespace TurathApi.Controllers
 
             if (cart == null)
             {
-                return NotFound(new { message = "السلة فارغة أو غير موجودة لهذا العميل." });
+                return NotFound(new { message = "The cart is empty or does not exist for this customer." });
             }
 
             return Ok(cart);
@@ -55,7 +55,7 @@ namespace TurathApi.Controllers
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(customerId))
             {
-                return Unauthorized("معرّف المستخدم غير صالح.");
+                return Unauthorized("Invalid user identifier.");
             }
 
             var cart = await _context.Carts
@@ -88,7 +88,7 @@ namespace TurathApi.Controllers
             }
 
             await _context.SaveChangesAsync();
-            return Ok(new { message = "تمت إضافة المنتج إلى السلة بنجاح." });
+            return Ok(new { message = "Product added to cart successfully." });
         }
 
         /// <summary>
@@ -101,7 +101,7 @@ namespace TurathApi.Controllers
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(customerId))
             {
-                return Unauthorized("معرّف المستخدم غير صالح.");
+                return Unauthorized("Invalid user identifier.");
             }
 
             var cart = await _context.Carts
@@ -109,7 +109,7 @@ namespace TurathApi.Controllers
 
             if (cart == null)
             {
-                return NotFound(new { message = "السلة غير موجودة." });
+                return NotFound(new { message = "Cart does not exist." });
             }
 
             var cartItem = await _context.CartItems
@@ -117,7 +117,7 @@ namespace TurathApi.Controllers
 
             if (cartItem == null)
             {
-                return NotFound(new { message = "المنتج غير موجود داخل السلة." });
+                return NotFound(new { message = "Product does not exist in the cart." });
             }
 
             if (dto.Quantity <= 0)
@@ -130,7 +130,7 @@ namespace TurathApi.Controllers
             }
 
             await _context.SaveChangesAsync();
-            return Ok(new { message = "تم تحديث السلة بنجاح." });
+            return Ok(new { message = "Cart updated successfully." });
         }
 
         /// <summary>
@@ -143,7 +143,7 @@ namespace TurathApi.Controllers
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(customerId))
             {
-                return Unauthorized("معرّف المستخدم غير صالح.");
+                return Unauthorized("Invalid user identifier.");
             }
 
             var cart = await _context.Carts
@@ -152,19 +152,19 @@ namespace TurathApi.Controllers
 
             if (cart == null)
             {
-                return NotFound(new { message = "السلة غير موجودة." });
+                return NotFound(new { message = "Cart does not exist." });
             }
 
             var cartItem = cart.CartItems.FirstOrDefault(i => i.ProductId == dto.ProductId);
             if (cartItem == null)
             {
-                return NotFound(new { message = "المنتج غير موجود داخل السلة." });
+                return NotFound(new { message = "Product does not exist in the cart." });
             }
 
             _context.CartItems.Remove(cartItem);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "تم إزالة المنتج من السلة بنجاح." });
+            return Ok(new { message = "Product removed from cart successfully." });
         }
 
         /// <summary>
@@ -177,7 +177,7 @@ namespace TurathApi.Controllers
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(customerId))
             {
-                return Unauthorized("معرّف المستخدم غير صالح.");
+                return Unauthorized("Invalid user identifier.");
             }
 
             var cart = await _context.Carts
@@ -186,7 +186,7 @@ namespace TurathApi.Controllers
 
             if (cart == null || !cart.CartItems.Any())
             {
-                return BadRequest(new { message = "السلة فارغة، لا يمكن إتمام عملية الشراء." });
+                return BadRequest(new { message = "The cart is empty. Cannot complete the checkout process." });
             }
 
             decimal totalAmount = cart.CartItems.Sum(item => item.Quantity * 10);
@@ -214,8 +214,7 @@ namespace TurathApi.Controllers
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "تم إتمام الطلب بنجاح.", orderId = order.Id });
+            return Ok(new { message = "Order placed successfully.", orderId = order.Id });
         }
     }
-
 }

@@ -1,9 +1,6 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using TurathApi.Data;
-using TurathApi.DTOs;
 using TurathApi.DTOs.Reviews;
 using TurathApi.Models;
 using TurathApi.Services.Interfaces;
@@ -14,12 +11,13 @@ namespace TurathApi.Controllers
     [Route("api/[controller]")]
     public class ReviewsController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IReviewService _reviewService;
         private readonly ILogger<ReviewsController> _logger;
 
-        public ReviewsController(AppDbContext context, ILogger<ReviewsController> logger)
+        public ReviewsController(IReviewService reviewService, ILogger<ReviewsController> logger)
         {
             _reviewService = reviewService;
+            _logger = logger;
         }
 
         // GET: api/reviews/get-all-reviews
@@ -47,6 +45,7 @@ namespace TurathApi.Controllers
 
         // GET: api/reviews/book/{bookId}
         [HttpGet("book/{bookId:int}")]
+        [AllowAnonymous]
         public async Task<ActionResult> GetReviewsForBook(int bookId)
         {
             var summary = await _reviewService.GetBookReviewsSummaryAsync(bookId);
@@ -54,14 +53,12 @@ namespace TurathApi.Controllers
         }
 
         // POST: api/reviews/create
-        [Authorize]
         [HttpPost("create")]
         [Authorize]
         public async Task<ActionResult<Review>> CreateReview([FromBody] CreateReviewDto dto)
         {
             try
             {
-                // Validate DTO
                 if (!ModelState.IsValid)
                 {
                     return BadRequest(new
@@ -71,19 +68,14 @@ namespace TurathApi.Controllers
                     });
                 }
 
-                var review = new Review
+                var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(currentUserId))
                 {
-                    CustomerId = dto.CustomerId,
-                    BookId = dto.BookId,
-                    Rating = dto.Rating,
-                    Comment = dto.Comment,
-                    CreatedAt = DateTime.UtcNow
-                };
+                    return Unauthorized(new { message = "Invalid user identifier." });
+                }
 
-            dto.CustomerId = currentUserId;
+                dto.CustomerId = currentUserId;
 
-            try
-            {
                 var createdReview = await _reviewService.AddReviewAsync(dto);
                 return CreatedAtAction(nameof(GetReview), new { id = createdReview.Id }, createdReview);
             }
@@ -91,10 +83,14 @@ namespace TurathApi.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while creating a review.");
+                return StatusCode(500, new { message = "An internal server error occurred." });
+            }
         }
 
         // PUT: api/reviews/update/{id}
-        [Authorize]
         [HttpPut("update/{id:int}")]
         [Authorize]
         public async Task<IActionResult> UpdateReview(int id, [FromBody] UpdateReviewDto dto)
@@ -110,54 +106,77 @@ namespace TurathApi.Controllers
                     });
                 }
 
-                var review = await _context.Reviews.FindAsync(id);
+                var review = await _reviewService.GetByIdAsync(id);
                 if (review == null)
                 {
-                    return NotFound(new { message = "Review not found" });
+                    return NotFound(new { message = "Review not found." });
                 }
 
-            // Ensure customers can only edit their own reviews (unless user has Admin role)
-            if (existingReview.CustomerId != currentUserId && !User.IsInRole("Admin"))
-            {
-                return Forbid();
-            }
+                var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(currentUserId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier." });
+                }
 
-            var updated = await _reviewService.UpdateReviewAsync(id, dto);
-            if (!updated)
-            {
-                return StatusCode(500, new { message = "Failed to update review." });
-            }
+                // Ensure customers can only edit their own reviews (unless user has Admin role)
+                if (review.CustomerId != currentUserId && !User.IsInRole("Admin"))
+                {
+                    return Forbid();
+                }
 
-            return Ok(new { message = "Review updated successfully." });
+                var updated = await _reviewService.UpdateReviewAsync(id, dto);
+                if (!updated)
+                {
+                    return StatusCode(500, new { message = "Failed to update review." });
+                }
+
+                return Ok(new { message = "Review updated successfully." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while updating review {ReviewId}.", id);
+                return StatusCode(500, new { message = "An internal server error occurred." });
+            }
         }
 
         // DELETE: api/reviews/delete/{id}
-        [Authorize]
         [HttpDelete("delete/{id:int}")]
         [Authorize]
         public async Task<IActionResult> DeleteReview(int id)
         {
             try
             {
-                var review = await _context.Reviews.FindAsync(id);
+                var review = await _reviewService.GetByIdAsync(id);
                 if (review == null)
                 {
-                    return NotFound(new { message = "Review not found" });
+                    return NotFound(new { message = "Review not found." });
                 }
 
-            // Ensure customers can only delete their own reviews (unless user has Admin role)
-            if (existingReview.CustomerId != currentUserId && !User.IsInRole("Admin"))
-            {
-                return Forbid();
-            }
+                var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(currentUserId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier." });
+                }
 
-            var deleted = await _reviewService.DeleteReviewAsync(id);
-            if (!deleted)
-            {
-                return StatusCode(500, new { message = "Failed to delete review." });
-            }
+                // Ensure customers can only delete their own reviews (unless user has Admin role)
+                if (review.CustomerId != currentUserId && !User.IsInRole("Admin"))
+                {
+                    return Forbid();
+                }
 
-            return Ok(new { message = "Review deleted successfully." });
+                var deleted = await _reviewService.DeleteReviewAsync(id);
+                if (!deleted)
+                {
+                    return StatusCode(500, new { message = "Failed to delete review." });
+                }
+
+                return Ok(new { message = "Review deleted successfully." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while deleting review {ReviewId}.", id);
+                return StatusCode(500, new { message = "An internal server error-occurred." });
+            }
         }
     }
 }
