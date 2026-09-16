@@ -10,7 +10,7 @@ namespace TurathApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin")] // متاح فقط للأدمن
+    [Authorize(Roles = "Admin")] // Accessible only for Admin
     public class AdminController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> _userManager;
@@ -24,7 +24,7 @@ namespace TurathApi.Controllers
 
         // ==================== USER MANAGEMENT ====================
 
-        // 1. عرض قائمة جميع المستخدمين
+        // 1. Get list of all users
         [HttpGet("users")]
         public async Task<IActionResult> GetAllUsers()
         {
@@ -42,39 +42,35 @@ namespace TurathApi.Controllers
             return Ok(users);
         }
 
-        // 2. تفعيل / إيقاف حساب مستخدم (Toggle Suspend/Activate)
+        // 2. Toggle user account status (Suspend / Activate)
         [HttpPut("users/{userId}/toggle-status")]
         public async Task<IActionResult> ToggleUserStatus(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
-                return NotFound("المستخدم غير موجود.");
+                return NotFound(new { message = "User not found." });
             }
-
 
             await _userManager.SetLockoutEnabledAsync(user, true);
 
             var isCurrentlySuspended = user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow;
 
             if (isCurrentlySuspended)
-           
             {
-            
                 await _userManager.SetLockoutEndDateAsync(user, null);
-                return Ok(new { message = $"تم تفعيل حساب المستخدم {user.UserName} بنجاح." });
+                return Ok(new { message = $"User account '{user.UserName}' has been activated successfully." });
             }
             else
             {
-                
                 await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.UtcNow.AddYears(100));
-                return Ok(new { message = $"تم حظر/تعليق حساب المستخدم {user.UserName} بنجاح." });
+                return Ok(new { message = $"User account '{user.UserName}' has been suspended successfully." });
             }
         }
 
         // ==================== CATEGORY REQUESTS MANAGEMENT ====================
 
-        // 3. عرض جميع طلبات الأقسام المعلقة (Pending)
+        // 3. Get all pending category requests
         [HttpGet("category-requests")]
         public async Task<IActionResult> GetPendingCategoryRequests()
         {
@@ -93,19 +89,17 @@ namespace TurathApi.Controllers
             return Ok(requests);
         }
 
-        // 4. الموافقة على طلب قسم وإضافته تلقائياً لقائمة الأقسام الفعالة
+        // 4. Approve category request and automatically add it to active categories
         [HttpPost("category-requests/{id}/approve")]
         public async Task<IActionResult> ApproveCategoryRequest(Guid id)
         {
             var request = await _context.CategoryRequests.FindAsync(id);
             if (request == null)
             {
-                return NotFound("الطلب غير موجود.");
+                return NotFound(new { message = "Category request not found." });
             }
 
-
             request.Status = "Approved";
-
 
             var newCategory = new Category
             {
@@ -115,28 +109,28 @@ namespace TurathApi.Controllers
             _context.Categories.Add(newCategory);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = $"تم قبول القسم '{request.CategoryName}' وإضافته بنجاح." });
+            return Ok(new { message = $"Category request '{request.CategoryName}' has been approved and added successfully." });
         }
 
-        // 5. رفض طلب القسم
+        // 5. Reject category request
         [HttpPost("category-requests/{id}/reject")]
         public async Task<IActionResult> RejectCategoryRequest(Guid id)
         {
             var request = await _context.CategoryRequests.FindAsync(id);
             if (request == null)
             {
-                return NotFound("الطلب غير موجود.");
+                return NotFound(new { message = "Category request not found." });
             }
 
             request.Status = "Rejected";
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = $"تم رفض طلب القسم '{request.CategoryName}'." });
+            return Ok(new { message = $"Category request '{request.CategoryName}' has been rejected." });
         }
 
         // ==================== BOOK APPROVAL QUEUE ====================
-        // 6. عرض قائمة الكتب المعلقة بانتظار موافقة الأدمن
-        // 6. عرض قائمة الكتب المعلقة بانتظار موافقة الأدمن
+
+        // 6. Get pending books awaiting admin approval
         [HttpGet("books/pending")]
         public async Task<IActionResult> GetPendingBooks()
         {
@@ -209,13 +203,13 @@ namespace TurathApi.Controllers
             var book = await _context.Books.FindAsync(id);
             if (book == null)
             {
-                return NotFound("الكتاب غير موجود.");
+                return NotFound(new { message = "Book not found." });
             }
 
             book.ApprovalStatus = ApprovalStatus.Approved;
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = $"تمت الموافقة على نشر الكتاب '{book.Title}' بنجاح." });
+            return Ok(new { message = $"Book '{book.Title}' has been approved for publication successfully." });
         }
 
         // 10. رفض نشر كتاب
@@ -225,13 +219,13 @@ namespace TurathApi.Controllers
             var book = await _context.Books.FindAsync(id);
             if (book == null)
             {
-                return NotFound("الكتاب غير موجود.");
+                return NotFound(new { message = "Book not found." });
             }
 
             book.ApprovalStatus = ApprovalStatus.Rejected;
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = $"تم رفض نشر الكتاب '{book.Title}'." });
+            return Ok(new { message = $"Book '{book.Title}' publication request has been rejected." });
         }
     }
 }

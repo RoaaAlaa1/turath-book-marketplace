@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -22,13 +22,13 @@ namespace TurathApi.Migrations
 ");
 
             migrationBuilder.AlterColumn<string>(
-    name: "SellerId",
-    table: "CategoryRequests",
-    type: "nvarchar(450)",
-    nullable: true,
-    oldClrType: typeof(string),
-    oldType: "nvarchar(max)",
-    oldNullable: true);
+                name: "SellerId",
+                table: "CategoryRequests",
+                type: "nvarchar(450)",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "nvarchar(max)",
+                oldNullable: true);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_CategoryRequests_AspNetUsers_SellerId",
