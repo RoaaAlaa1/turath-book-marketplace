@@ -19,11 +19,8 @@ namespace TurathApi.Controllers
             _context = context;
         }
 
-        /// <summary>
-        /// GET /api/orders
-        /// Returns all orders for the currently authenticated customer.
-        /// </summary>
-        [HttpGet]
+        // Returns all orders for the currently authenticated customer.
+        [HttpGet("{customerId}")]   
         public async Task<ActionResult<IEnumerable<Order>>> GetMyOrders()
         {
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -42,10 +39,7 @@ namespace TurathApi.Controllers
             return Ok(orders);
         }
 
-        /// <summary>
-        /// GET /api/orders/details/{id}
         /// Returns order details only if it belongs to the authenticated customer.
-        /// </summary>
         [HttpGet("details/{id:guid}")]
         public async Task<ActionResult<Order>> GetOrder(Guid id)
         {
