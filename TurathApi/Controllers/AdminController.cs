@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
+using TurathApi.DTOs;
 using TurathApi.Models;
 using TurathApi.Models.Enums;
 
@@ -20,6 +21,29 @@ namespace TurathApi.Controllers
         {
             _userManager = userManager;
             _context = context;
+        }
+
+        // ==================== DASHBOARD STATS ====================
+
+        // 0. Get admin dashboard statistics
+        [HttpGet("dashboard-stats")]
+        public async Task<ActionResult<DashboardStatsDto>> GetDashboardStats()
+        {
+            var customers = await _userManager.GetUsersInRoleAsync("Customer");
+            var sellers = await _userManager.GetUsersInRoleAsync("Seller");
+
+            var stats = new DashboardStatsDto
+            {
+                TotalCustomers = customers.Count,
+                TotalSellers = sellers.Count,
+                TotalBooks = await _context.Books.CountAsync(),
+                TotalOrders = await _context.Orders.CountAsync(),
+                PendingOrders = await _context.Orders.Where(o => o.Status == "Pending").CountAsync(), // تعديل المقارنة لنص
+                PendingBookApprovals = await _context.Books.Where(b => b.ApprovalStatus == ApprovalStatus.Pending).CountAsync(),
+                PendingCategoryApprovals = await _context.CategoryRequests.Where(r => r.Status == "pending").CountAsync()
+            };
+
+            return Ok(stats);
         }
 
         // ==================== USER MANAGEMENT ====================
@@ -180,7 +204,7 @@ namespace TurathApi.Controllers
 
             if (book == null)
             {
-                return NotFound("Book not found.");
+                return NotFound(new { message = "Book not found." });
             }
 
             var wishlistItems = await _context.WishlistItems
@@ -199,7 +223,7 @@ namespace TurathApi.Controllers
             });
         }
 
-        // 9. Approve a new book listing
+        // 9. Approve publication of a new book
         [HttpPost("books/{id}/approve")]
         public async Task<IActionResult> ApproveBook(int id)
         {
@@ -215,7 +239,7 @@ namespace TurathApi.Controllers
             return Ok(new { message = $"Book '{book.Title}' has been approved successfully." });
         }
 
-        // 10. Reject a book listing
+        // 10. Reject publication of a book
         [HttpPost("books/{id}/reject")]
         public async Task<IActionResult> RejectBook(int id)
         {
