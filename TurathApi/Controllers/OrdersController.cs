@@ -20,7 +20,7 @@ namespace TurathApi.Controllers
         }
 
         // Returns all orders for the currently authenticated customer.
-        [HttpGet("{customerId}")]   
+        [HttpGet]
         public async Task<ActionResult<IEnumerable<Order>>> GetMyOrders()
         {
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -40,8 +40,8 @@ namespace TurathApi.Controllers
         }
 
         /// Returns order details only if it belongs to the authenticated customer.
-        [HttpGet("details/{id:guid}")]
-        public async Task<ActionResult<Order>> GetOrder(Guid id)
+        [HttpGet("details/{id:int}")]
+        public async Task<ActionResult<Order>> GetOrder(int id)
         {
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(customerId))
@@ -61,7 +61,5 @@ namespace TurathApi.Controllers
 
             return Ok(order);
         }
-
     }
-
 }
