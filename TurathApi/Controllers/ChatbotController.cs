@@ -5,12 +5,12 @@ namespace TurathApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class ChatController : ControllerBase
+    public class ChatbotController : ControllerBase
     {
         private readonly ChatbotService _chatbotService;
-        private readonly ILogger<ChatController> _logger;
+        private readonly ILogger<ChatbotController> _logger;
 
-        public ChatController(ChatbotService chatbotService, ILogger<ChatController> logger)
+        public ChatbotController(ChatbotService chatbotService, ILogger<ChatbotController> logger)
         {
             _chatbotService = chatbotService;
             _logger = logger;

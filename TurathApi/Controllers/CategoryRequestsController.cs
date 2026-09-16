@@ -4,8 +4,6 @@ using System.Security.Claims;
 using TurathApi.Data;
 using TurathApi.Models;
 using TurathApi.DTOs.Categories;
-using TurathApi.DTOs;
-using TurathApi.Models;
 
 namespace TurathApi.Controllers
 {
@@ -21,21 +19,21 @@ namespace TurathApi.Controllers
         }
 
         [HttpPost]
-        [Authorize] // يتطلب توثيق الـ Token
-        public async Task<IActionResult> CreateRequest(CreateCategoryRequestDto dto)
+        [Authorize] // Requires Token authentication
+        public async Task<IActionResult> CreateRequest([FromBody] CreateCategoryRequestDto dto)
         {
-            // استخراج Id المستخدم الحالي مسجل الدخول من الـ Token تلقائياً
+            // Automatically extract the current logged-in user's ID from the token
             var sellerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             if (string.IsNullOrEmpty(sellerId))
             {
-                return Unauthorized("المستخدم غير مسجل الدخول أو الـ Token غير صالح.");
+                return Unauthorized(new { message = "User is not logged in or the token is invalid." });
             }
 
             var categoryRequest = new CategoryRequest
             {
                 CategoryName = dto.CategoryName,
-                SellerId = sellerId, // ربط الـ ID الإجباري تلقائياً
+                SellerId = sellerId, // Automatically link the seller ID
                 Status = "pending",
                 RequestedAt = DateTime.UtcNow
             };
@@ -43,7 +41,8 @@ namespace TurathApi.Controllers
             _context.CategoryRequests.Add(categoryRequest);
             await _context.SaveChangesAsync();
 
-            return Ok(categoryRequest);
+            return Ok(new { message = "Category request submitted successfully.", data = categoryRequest });
         }
     }
+
 }

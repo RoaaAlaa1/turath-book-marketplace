@@ -1,7 +1,7 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 using TurathApi.Data;
 using TurathApi.DTOs.Books;
 using TurathApi.Models;
@@ -20,6 +20,12 @@ namespace TurathApi.Controllers
             _context = context;
         }
 
+        // ==================== PUBLIC ENDPOINTS ====================
+
+        /// <summary>
+        /// GET /api/books
+        /// Returns the public catalog — approved books only.
+        /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<BookResponseDto>>> GetAll(
             [FromQuery] string? search,
@@ -79,7 +85,7 @@ namespace TurathApi.Controllers
                 .FirstOrDefaultAsync(b => b.Id == id);
 
             if (book is null || book.ApprovalStatus != ApprovalStatus.Approved)
-                return NotFound();
+                return NotFound(new { message = "Book not found." });
 
             var dto = new BookResponseDto
             {
@@ -98,23 +104,20 @@ namespace TurathApi.Controllers
                 ApprovalStatus = book.ApprovalStatus
             };
 
-            return Ok(book);
+            return Ok(dto);
         }
 
-        private string GetCurrentUserId()
-        {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userIdClaim?.Value))
-            {
-                throw new UnauthorizedAccessException("User not authenticated.");
-            }
-            return userIdClaim.Value;
-        }
+        // ==================== SELLER-OWNED BOOKS (PROTECTED) ====================
 
         [HttpGet("mine")]
-        public async Task<ActionResult<IEnumerable<BookResponseDto>>> GetMyBooks()
+        [Authorize]
+        public async Task<IActionResult> GetMyBooks()
         {
-            var sellerId = GetCurrentUserId();
+            var sellerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(sellerId))
+            {
+                return Unauthorized(new { message = "Invalid user identifier." });
+            }
 
             var books = await _context.Books
                 .Include(b => b.Category)
@@ -140,17 +143,14 @@ namespace TurathApi.Controllers
             return Ok(books);
         }
 
-
-        [Authorize]
         [HttpPost]
+        [Authorize]
         public async Task<IActionResult> Create([FromBody] CreateBookDto dto)
         {
-            var sellerId = GetCurrentUserId();
-
-            var categoryExists = await _context.Categories.AnyAsync(c => c.Id == dto.CategoryId);
-            if (!categoryExists)
+            var sellerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(sellerId))
             {
-                return BadRequest(new { message = $"Category with ID {dto.CategoryId} does not exist. Choose 1, 2, 3, or 4." });
+                return Unauthorized(new { message = "Invalid user identifier." });
             }
 
             var book = new Book
@@ -174,25 +174,22 @@ namespace TurathApi.Controllers
             return CreatedAtAction(nameof(GetById), new { id = book.Id }, book);
         }
 
-
-        [Authorize]
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Edit(int id, [FromBody] UpdateBookDto dto)
+        [Authorize]
+        public async Task<IActionResult> Edit(int id, [FromBody] CreateBookDto dto)
         {
-            var sellerId = GetCurrentUserId();
+            var sellerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(sellerId))
+            {
+                return Unauthorized(new { message = "Invalid user identifier." });
+            }
 
             var existingBook = await _context.Books
                 .FirstOrDefaultAsync(b => b.Id == id && b.SellerId == sellerId);
 
             if (existingBook == null)
             {
-                return NotFound(new { message = "Book not found or you are not authorized to edit it." });
-            }
-
-            var categoryExists = await _context.Categories.AnyAsync(c => c.Id == dto.CategoryId);
-            if (!categoryExists)
-            {
-                return BadRequest(new { message = $"Category with ID {dto.CategoryId} does not exist." });
+                return NotFound(new { message = "Book not found or you do not have permission to edit it." });
             }
 
             existingBook.Title = dto.Title;
@@ -204,7 +201,6 @@ namespace TurathApi.Controllers
             existingBook.Quantity = dto.Quantity;
             existingBook.CategoryId = dto.CategoryId;
             existingBook.ImageUrl = dto.ImageUrl;
-
             existingBook.ApprovalStatus = ApprovalStatus.Pending;
 
             await _context.SaveChangesAsync();
@@ -213,21 +209,24 @@ namespace TurathApi.Controllers
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
-            var sellerId = GetCurrentUserId();
+            var sellerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(sellerId))
+            {
+                return Unauthorized(new { message = "Invalid user identifier." });
+            }
 
             var book = await _context.Books
-                .FirstOrDefaultAsync(
-                    b => b.Id == id && b.SellerId == sellerId);
+                .FirstOrDefaultAsync(b => b.Id == id && b.SellerId == sellerId);
 
             if (book == null)
             {
-                return NotFound();
+                return NotFound(new { message = "Book not found or you do not have permission to delete it." });
             }
 
             _context.Books.Remove(book);
-
             await _context.SaveChangesAsync();
 
             return NoContent();

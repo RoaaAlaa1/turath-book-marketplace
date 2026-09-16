@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using TurathApi.Models;
 
@@ -10,6 +10,7 @@ namespace TurathApi.Data
         {
         }
 
+        public DbSet<SupportTicket> SupportTickets { get; set; }
         public DbSet<Review> Reviews => Set<Review>();
         public DbSet<SellerRequest> SellerRequests { get; set; }
         public DbSet<Cart> Carts => Set<Cart>();
@@ -20,6 +21,7 @@ namespace TurathApi.Data
         public DbSet<Category> Categories => Set<Category>();
         public DbSet<Comment> Comments => Set<Comment>();
         public DbSet<CategoryRequest> CategoryRequests => Set<CategoryRequest>();
+        public DbSet<WishlistItem> WishlistItems => Set<WishlistItem>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -128,6 +130,29 @@ namespace TurathApi.Data
                     .HasForeignKey(b => b.CategoryId)
                     .OnDelete(DeleteBehavior.Restrict);
 
+            });
+
+            // 4. ضبط جدول WishlistItems
+            modelBuilder.Entity<WishlistItem>(entity =>
+            {
+                entity.ToTable("WishlistItems");
+                entity.HasKey(w => w.Id);
+                entity.Property(w => w.Id).HasColumnName("id");
+                entity.Property(w => w.CustomerId).HasColumnName("customer_id").IsRequired();
+                entity.Property(w => w.BookId).HasColumnName("book_id");
+                entity.Property(w => w.AddedAt).HasColumnName("added_at");
+
+                entity.HasIndex(w => new { w.CustomerId, w.BookId }).IsUnique();
+
+                entity.HasOne(w => w.Book)
+                    .WithMany()
+                    .HasForeignKey(w => w.BookId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne<ApplicationUser>()
+                    .WithMany()
+                    .HasForeignKey(w => w.CustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             // Seed data 
