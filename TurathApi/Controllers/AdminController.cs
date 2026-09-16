@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
+using TurathApi.DTOs;
 using TurathApi.Models;
 using TurathApi.Models.Enums;
 
@@ -20,6 +21,29 @@ namespace TurathApi.Controllers
         {
             _userManager = userManager;
             _context = context;
+        }
+
+        // ==================== DASHBOARD STATS ====================
+
+        // 0. Get admin dashboard statistics
+        [HttpGet("dashboard-stats")]
+        public async Task<ActionResult<DashboardStatsDto>> GetDashboardStats()
+        {
+            var customers = await _userManager.GetUsersInRoleAsync("Customer");
+            var sellers = await _userManager.GetUsersInRoleAsync("Seller");
+
+            var stats = new DashboardStatsDto
+            {
+                TotalCustomers = customers.Count,
+                TotalSellers = sellers.Count,
+                TotalBooks = await _context.Books.CountAsync(),
+                TotalOrders = await _context.Orders.CountAsync(),
+                PendingOrders = await _context.Orders.Where(o => o.Status == "Pending").CountAsync(), // تعديل المقارنة لنص
+                PendingBookApprovals = await _context.Books.Where(b => b.ApprovalStatus == ApprovalStatus.Pending).CountAsync(),
+                PendingCategoryApprovals = await _context.CategoryRequests.Where(r => r.Status == "pending").CountAsync()
+            };
+
+            return Ok(stats);
         }
 
         // ==================== USER MANAGEMENT ====================
@@ -150,8 +174,7 @@ namespace TurathApi.Controllers
             return Ok(pendingBooks);
         }
 
-
-        // 7. عرض جميع الكتب للأدمن
+        // 7. Get all books for admin view
         [HttpGet("books")]
         public async Task<IActionResult> GetAllBooks()
         {
@@ -171,7 +194,7 @@ namespace TurathApi.Controllers
             return Ok(books);
         }
 
-        // 8. حذف كتاب من الكتالوج
+        // 8. Remove a book from the catalog
         [HttpDelete("books/{id}")]
         public async Task<IActionResult> RemoveBook(int id)
         {
@@ -181,7 +204,7 @@ namespace TurathApi.Controllers
 
             if (book == null)
             {
-                return NotFound("الكتاب غير موجود.");
+                return NotFound(new { message = "Book not found." });
             }
 
             _context.Reviews.RemoveRange(book.Reviews);
@@ -191,12 +214,11 @@ namespace TurathApi.Controllers
 
             return Ok(new
             {
-                message = $"تم حذف الكتاب '{book.Title}' بنجاح."
+                message = $"Book '{book.Title}' has been deleted successfully."
             });
         }
 
-
-        // 9. الموافقة على نشر كتاب جديد
+        // 9. Approve publication of a new book
         [HttpPost("books/{id}/approve")]
         public async Task<IActionResult> ApproveBook(int id)
         {
@@ -212,7 +234,7 @@ namespace TurathApi.Controllers
             return Ok(new { message = $"Book '{book.Title}' has been approved for publication successfully." });
         }
 
-        // 10. رفض نشر كتاب
+        // 10. Reject publication of a book
         [HttpPost("books/{id}/reject")]
         public async Task<IActionResult> RejectBook(int id)
         {

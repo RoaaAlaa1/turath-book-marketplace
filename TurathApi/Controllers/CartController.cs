@@ -20,14 +20,15 @@ namespace TurathApi.Controllers
             _context = context;
         }
 
-        /// Returns the cart for the authenticated customer.
+        // Returns the cart for the authenticated user
         [HttpGet("{customerId}")]
+        [Authorize]
         public async Task<IActionResult> GetCart(string customerId)
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(currentUserId))
             {
-                return Unauthorized("Invalid user identifier.");
+                return Unauthorized(new { message = "Invalid user identifier." });
             }
 
             // Ensure customers can only view their own cart (unless Admin)
@@ -42,7 +43,7 @@ namespace TurathApi.Controllers
 
             if (cart == null)
             {
-                return NotFound(new { message = "The cart is empty or does not exist for this customer." });
+                return NotFound(new { message = "Cart not found." });
             }
 
             return Ok(cart);

@@ -17,7 +17,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-
 // Identity Configuration (Hardened Security Defaults)
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
@@ -31,7 +30,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
-//  Application Business Services
+// Application Business Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IBookService, BookService>();
 builder.Services.AddScoped<ICartService, CartService>();
@@ -63,6 +62,7 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
 });
+
 // Controllers & JSON Formatting
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -140,19 +140,49 @@ builder.Services.AddHttpClient<ChatbotService>();
 var app = builder.Build();
 
 
-
 // Automatic Role Seeding Pipeline
+
 using (var scope = app.Services.CreateScope())
 {
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    string[] roles = { "Admin", "Seller", "Customer" };
-
-    foreach (var role in roles)
+    var services = scope.ServiceProvider;
+    try
     {
-        if (!await roleManager.RoleExistsAsync(role))
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+        var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+
+        string[] roles = { "Admin", "Seller", "Customer" };
+
+        foreach (var role in roles)
         {
-            await roleManager.CreateAsync(new IdentityRole(role));
+            if (!await roleManager.RoleExistsAsync(role))
+            {
+                await roleManager.CreateAsync(new IdentityRole(role));
+            }
         }
+
+        // Optional: Create a default admin user if not exists
+        string adminEmail = "admin@turath.com";
+        var adminUser = await userManager.FindByEmailAsync(adminEmail);
+        if (adminUser == null)
+        {
+            var user = new ApplicationUser
+            {
+                UserName = adminEmail,
+                Email = adminEmail,
+                EmailConfirmed = true
+            };
+
+            var result = await userManager.CreateAsync(user, "Admin@12345");
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(user, "Admin");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while seeding database roles and admin.");
     }
 }
 
