@@ -132,7 +132,14 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Chatbot
+builder.Services.AddHttpClient<ChatbotService>();
+builder.Services.AddScoped<ChatbotToolService>();
+
+
 var app = builder.Build();
+
+
 
 // Automatic Role Seeding Pipeline
 using (var scope = app.Services.CreateScope())
