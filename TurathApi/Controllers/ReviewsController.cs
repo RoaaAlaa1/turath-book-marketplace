@@ -46,7 +46,7 @@ namespace TurathApi.Controllers
         // GET: api/reviews/book/{bookId}
         [HttpGet("book/{bookId:int}")]
         [AllowAnonymous]
-        public async Task<ActionResult> GetReviewsForBook(int bookId)
+        public async Task<ActionResult<BookReviewsSummaryDto>> GetReviewsForBook(int bookId)
         {
             var summary = await _reviewService.GetBookReviewsSummaryAsync(bookId);
             return Ok(summary);
@@ -75,7 +75,8 @@ namespace TurathApi.Controllers
                 }
 
                 dto.CustomerId = currentUserId;
-
+            try
+            {
                 var createdReview = await _reviewService.AddReviewAsync(dto);
                 return CreatedAtAction(nameof(GetReview), new { id = createdReview.Id }, createdReview);
             }
@@ -146,13 +147,14 @@ namespace TurathApi.Controllers
         {
             try
             {
+                var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 var review = await _reviewService.GetByIdAsync(id);
+                
                 if (review == null)
                 {
                     return NotFound(new { message = "Review not found." });
                 }
 
-                var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrEmpty(currentUserId))
                 {
                     return Unauthorized(new { message = "Invalid user identifier." });

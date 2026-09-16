@@ -20,12 +20,9 @@ namespace TurathApi.Controllers
             _context = context;
         }
 
-        /// <summary>
-        /// GET /api/cart
         /// Returns the cart for the authenticated customer.
-        /// </summary>
-        [HttpGet]
-        public async Task<IActionResult> GetCart()
+        [HttpGet("{customerId}")]
+        public async Task<IActionResult> GetCart(string customerId)
         {
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(customerId))
@@ -45,10 +42,7 @@ namespace TurathApi.Controllers
             return Ok(cart);
         }
 
-        /// <summary>
-        /// POST /api/cart/add
         /// Adds a product to the authenticated user's cart.
-        /// </summary>
         [HttpPost("add")]
         public async Task<IActionResult> AddToCart([FromBody] AddToCartDto dto)
         {
@@ -91,10 +85,7 @@ namespace TurathApi.Controllers
             return Ok(new { message = "Product added to cart successfully." });
         }
 
-        /// <summary>
-        /// PUT /api/cart/update-item
         /// Updates item quantity in the authenticated user's cart.
-        /// </summary>
         [HttpPut("update-item")]
         public async Task<IActionResult> UpdateCartItem([FromBody] UpdateCartItemDto dto)
         {
@@ -133,10 +124,8 @@ namespace TurathApi.Controllers
             return Ok(new { message = "Cart updated successfully." });
         }
 
-        /// <summary>
-        /// DELETE /api/cart/remove-item
+
         /// Removes an item from the authenticated user's cart.
-        /// </summary>
         [HttpDelete("remove-item")]
         public async Task<IActionResult> RemoveCartItem([FromBody] RemoveCartItemDto dto)
         {
@@ -167,12 +156,10 @@ namespace TurathApi.Controllers
             return Ok(new { message = "Product removed from cart successfully." });
         }
 
-        /// <summary>
-        /// POST /api/cart/checkout
+
         /// Creates an order from the current cart items for the authenticated user.
-        /// </summary>
         [HttpPost("checkout")]
-        public async Task<IActionResult> Checkout()
+        public async Task<IActionResult> Checkout([FromBody] CheckoutDto dto)        
         {
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(customerId))
