@@ -113,8 +113,8 @@ namespace TurathApi.Controllers
         [Authorize]
         public async Task<IActionResult> GetMyBooks()
         {
-            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdClaim, out int sellerId))
+            var sellerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(sellerId))
             {
                 return Unauthorized(new { message = "Invalid user identifier." });
             }
@@ -147,8 +147,8 @@ namespace TurathApi.Controllers
         [Authorize]
         public async Task<IActionResult> Create([FromBody] CreateBookDto dto)
         {
-            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdClaim, out int sellerId))
+            var sellerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(sellerId))
             {
                 return Unauthorized(new { message = "Invalid user identifier." });
             }
@@ -178,8 +178,8 @@ namespace TurathApi.Controllers
         [Authorize]
         public async Task<IActionResult> Edit(int id, [FromBody] CreateBookDto dto)
         {
-            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdClaim, out int sellerId))
+            var sellerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(sellerId))
             {
                 return Unauthorized(new { message = "Invalid user identifier." });
             }
@@ -212,8 +212,8 @@ namespace TurathApi.Controllers
         [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
-            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdClaim, out int sellerId))
+            var sellerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(sellerId))
             {
                 return Unauthorized(new { message = "Invalid user identifier." });
             }

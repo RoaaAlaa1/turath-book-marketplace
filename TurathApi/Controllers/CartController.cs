@@ -24,10 +24,16 @@ namespace TurathApi.Controllers
         [HttpGet("{customerId}")]
         public async Task<IActionResult> GetCart(string customerId)
         {
-            var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(customerId))
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(currentUserId))
             {
                 return Unauthorized("Invalid user identifier.");
+            }
+
+            // Ensure customers can only view their own cart (unless Admin)
+            if (customerId != currentUserId && !User.IsInRole("Admin"))
+            {
+                return Forbid();
             }
 
             var cart = await _context.Carts
