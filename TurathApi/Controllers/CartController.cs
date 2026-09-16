@@ -21,9 +21,9 @@ namespace TurathApi.Controllers
         }
 
         // Returns the cart for the authenticated user
-        [HttpGet]
-        [Authorize]
-        public async Task<IActionResult> GetCart()
+        [HttpGet("{customerId}")]
+        [Authorized]
+        public async Task<IActionResult> GetCart(string customerId)
         {
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(customerId))
