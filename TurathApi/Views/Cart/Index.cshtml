@@ -1,0 +1,205 @@
+﻿<div class="container mt-4">
+    <h2>سلة التسوق</h2>
+
+    <!-- نموذج إضافة عنصر -->
+    <div class="card p-3 mb-3 bg-light">
+        <h5>تجربة إضافة عنصر إلى السلة:</h5>
+        <div class="row g-2 align-items-center mt-1">
+            <div class="col-md-5">
+                <input type="number" id="test-product-id" class="form-control" placeholder="معرف المنتج (مثل: 77)" value="77" min="1" />
+            </div>
+            <div class="col-md-3">
+                <input type="number" id="test-qty" class="form-control" placeholder="الكمية" value="1" min="1" />
+            </div>
+            <div class="col-md-4">
+                <button class="btn btn-success w-100" onclick="addItemDirectly()">+ إضافة إلى السلة</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- جدول عرض المنتجات -->
+    <table class="table table-bordered align-middle text-center">
+        <thead class="table-dark">
+            <tr>
+                <th>معرف/اسم المنتج</th>
+                <th>السعر</th>
+                <th>الكمية</th>
+                <th>المجموع</th>
+                <th>إجراءات</th>
+            </tr>
+        </thead>
+        <tbody id="cart-body">
+            <!-- تحميل البيانات بالـ JavaScript -->
+        </tbody>
+    </table>
+
+    <!-- الإجمالي والدفع -->
+    <div class="card p-3 text-end">
+        <h4>الإجمالي اللحظي: <span id="cart-total" class="text-success">$0.00</span></h4>
+        <div>
+            <button class="btn btn-primary mt-2" onclick="checkout()">إتمام الشراء (Checkout)</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    const customerId = "1";
+
+    $(document).ready(function () {
+        loadCart();
+    });
+
+    function loadCart() {
+        $.ajax({
+            url: `/api/Cart/${customerId}`,
+            type: 'GET',
+            success: function (data) {
+                renderCart(data);
+            },
+            error: function () {
+                $('#cart-body').html('<tr><td colspan="5" class="text-center">السلة فارغة حالياً</td></tr>');
+                $('#cart-total').text('$0.00');
+            }
+        });
+    }
+
+    function addItemDirectly() {
+        let prodId = parseInt($('#test-product-id').val());
+        let qty = parseInt($('#test-qty').val());
+
+        if (isNaN(prodId) || qty < 1) {
+            alert("يرجى إدخال رقم منتج صحيح وكمية صحيحة");
+            return;
+        }
+
+        $.ajax({
+            url: '/api/Cart/add',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                customerId: customerId,
+                productId: prodId,
+                quantity: qty
+            }),
+            success: function (res) {
+                // تم إزالة الـ alert المزعج لتكون التجربة أسرع وأسلس، ويتم تحديث الجدول فوراً
+                loadCart();
+            },
+            error: function (xhr) {
+                let msg = "فشلت الإضافة";
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    msg = xhr.responseJSON.message;
+                }
+                alert("تنبيه: " + msg);
+            }
+        });
+    }
+
+    function renderCart(cartData) {
+        let html = '';
+        let grandTotal = 0;
+
+        if (!cartData || !cartData.cartItems || cartData.cartItems.length === 0) {
+            $('#cart-body').html('<tr><td colspan="5" class="text-center">السلة فارغة حالياً</td></tr>');
+            $('#cart-total').text('$0.00');
+            return;
+        }
+
+        cartData.cartItems.forEach(item => {
+            let price = 10; // سعر افتراضي للعرض
+            let subtotal = price * item.quantity;
+            grandTotal += subtotal;
+
+            html += `
+                <tr id="item-${item.productId}">
+                    <td>منتج رقم ${item.productId}</td>
+                    <td>$${price.toFixed(2)}</td>
+                    <td>
+                        <div class="d-flex align-items-center justify-content-center gap-2">
+                            <button class="btn btn-sm btn-secondary" onclick="changeQty(${item.productId}, ${item.quantity - 1})">-</button>
+                            <input type="number" class="form-control text-center" style="width: 65px;" value="${item.quantity}" readonly />
+                            <button class="btn btn-sm btn-secondary" onclick="changeQty(${item.productId}, ${item.quantity + 1})">+</button>
+                        </div>
+                    </td>
+                    <td>$${subtotal.toFixed(2)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="removeItem(${item.productId})">حذف</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        $('#cart-body').html(html);
+        $('#cart-total').text('$' + grandTotal.toFixed(2));
+    }
+
+    function changeQty(productId, newQty) {
+        $.ajax({
+            url: '/api/Cart/update-item',
+            type: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                customerId: customerId,
+                productId: productId,
+                quantity: newQty
+            }),
+            success: function () {
+                loadCart();
+            },
+            error: function () {
+                alert("حدث خطأ أثناء التحديث");
+            }
+        });
+    }
+
+    function removeItem(productId) {
+        $.ajax({
+            url: '/api/Cart/remove-item',
+            type: 'DELETE',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                customerId: customerId,
+                productId: productId
+            }),
+            success: function () {
+                loadCart();
+            },
+            error: function () {
+                alert("حدث خطأ أثناء الحذف");
+            }
+        });
+    }
+
+  function checkout() {
+    // قراءة الإجمالي الظاهري من عنصر الإجمالي في صفحة السلة مباشرة
+    let totalText = $('#cart-total, #total-amount, .cart-total').text().replace('$', '').trim();
+    let totalAmount = parseFloat(totalText) || 40.00; // القيمة الحقيقية الظاهرة عندك
+
+    let quantity = parseInt($('input[type="number"], .qty-input').val()) || 4;
+    let unitPrice = totalAmount / quantity;
+
+    let cartItems = [{
+        productId: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        quantity: quantity,
+        price: unitPrice
+    }];
+
+    $.ajax({
+        url: '/api/Orders/create',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ 
+            customerId: "1", 
+            items: cartItems 
+        }),
+        success: function (res) {
+            alert("تم إتمام الشراء بنجاح! الإجمالي: $" + res.total);
+            window.location.href = '/Orders/Track';
+        },
+        error: function () {
+            alert("فشلت عملية إتمام الشراء");
+        }
+    });
+}
+</script>

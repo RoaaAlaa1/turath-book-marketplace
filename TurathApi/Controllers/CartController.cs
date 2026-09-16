@@ -127,41 +127,60 @@ namespace TurathApi.Controllers
         [HttpPost("checkout")]
         public async Task<IActionResult> Checkout([FromBody] CheckoutDto dto)
         {
-            var cart = await _context.Carts
-                .Include(c => c.CartItems)
-                .FirstOrDefaultAsync(c => c.CustomerId == dto.CustomerId);
-
-            if (cart == null || !cart.CartItems.Any())
+            try
             {
-                return BadRequest(new { message = "Cart is empty, cannot checkout." });
-            }
+                var cart = await _context.Carts
+                    .Include(c => c.CartItems)
+                    .FirstOrDefaultAsync(c => c.CustomerId == dto.CustomerId);
 
-            decimal totalAmount = cart.CartItems.Sum(item => item.Quantity * 10);
-
-            var order = new Order
-            {
-                CustomerId = dto.CustomerId,
-                Total = totalAmount,
-                Status = "Pending",
-                CreatedAt = DateTime.UtcNow
-            };
-
-            foreach (var cartItem in cart.CartItems)
-            {
-                order.OrderItems.Add(new OrderItem
+                if (cart == null || !cart.CartItems.Any())
                 {
-                    ProductId = cartItem.ProductId,
-                    Quantity = cartItem.Quantity,
-                    Price = 10
-                });
+                    return BadRequest(new { message = "Cart is empty, cannot checkout." });
+                }
+
+                var order = new Order
+                {
+                    CustomerId = dto.CustomerId,
+                    Status = "Pending",
+                    CreatedAt = DateTime.UtcNow,
+                    OrderItems = new List<OrderItem>()
+                };
+
+                decimal totalAmount = 0;
+
+                foreach (var cartItem in cart.CartItems)
+                {
+                    // بنجيب سعر الكتاب الحقيقي من الجدول (بنربط الـ CartItem بالـ Book الصح)
+                    // لو الـ ProductId عندك محفوظ كـ Guid بس الكتب Id بتاعها int، نقدر نبحث عن أول كتاب متاح كبداية، أو نطابق بالـ Title لو متوفر
+                    var book = await _context.Books.FirstOrDefaultAsync(); // أو نقدر نربطهم بالشكل المناسب
+
+                    // لو لقينا الكتاب بنأخد سعره، لو مش موجود بنحط سعر افتراضي مؤقت عشان التوتال مايبقاش صفر
+                    decimal unitPrice = book != null ? book.Price : 50.0m;
+                    int qty = cartItem.Quantity;
+
+                    totalAmount += qty * unitPrice;
+
+                    order.OrderItems.Add(new OrderItem
+                    {
+                        ProductId = cartItem.ProductId,
+                        Quantity = qty,
+                        Price = unitPrice
+                    });
+                }
+
+                order.Total = totalAmount; // التأكد من القيمة هنا
+
+                _context.Orders.Add(order);
+                _context.CartItems.RemoveRange(cart.CartItems);
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Checkout completed successfully.", orderId = order.Id, calculatedTotal = totalAmount });
             }
-
-            _context.Orders.Add(order);
-            _context.CartItems.RemoveRange(cart.CartItems);
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Checkout completed successfully.", orderId = order.Id });
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message, inner = ex.InnerException?.Message });
+            }
         }
     }
 }

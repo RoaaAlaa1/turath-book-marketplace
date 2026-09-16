@@ -17,8 +17,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-
-// Identity Configuration (Hardened Security Defaults)
+// Identity Configuration
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     options.Password.RequireDigit = true;
@@ -31,7 +30,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
-//  Application Business Services
+// Application Business Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IBookService, BookService>();
 builder.Services.AddScoped<ICartService, CartService>();
@@ -41,7 +40,6 @@ builder.Services.AddScoped<ChatbotToolService>();
 // JWT Authentication Service Setup
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
-
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -63,7 +61,8 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
 });
-// Controllers & JSON Formatting
+
+// Controllers & JSON Formatting (API Config)
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -136,10 +135,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddHttpClient<ChatbotService>();
 builder.Services.AddScoped<ChatbotToolService>();
 
-
 var app = builder.Build();
-
-
 
 // Automatic Role Seeding Pipeline
 using (var scope = app.Services.CreateScope())
@@ -168,7 +164,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseCors("Frontend");
+app.UseRouting();
 
 // Auth Middleware Pipeline Order
 app.UseAuthentication();

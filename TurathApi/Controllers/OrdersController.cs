@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
 using TurathApi.Models;
@@ -44,5 +44,31 @@ namespace TurathApi.Controllers
 
             return Ok(order);
         }
+
+        [HttpPatch("{id:guid}/status")]
+        public async Task<IActionResult> UpdateOrderStatus(Guid id, [FromBody] UpdateOrderStatusDto dto)
+        {
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            if (order == null)
+            {
+                return NotFound(new { message = "Order not found" });
+            }
+
+            // تحديث حالة الأوردر (Pending, Cancelled, Completed, ...)
+            order.Status = dto.Status;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = $"Order status updated to '{order.Status}' successfully.", orderId = order.Id });
+        }
+    }
+
+    // الـ DTO الخاص بتحديث الحالة (يمكنك وضعه هنا أو في ملف منفصل داخل فولدر الـ DTOs)
+    public class UpdateOrderStatusDto
+    {
+        public string Status { get; set; }
     }
 }
