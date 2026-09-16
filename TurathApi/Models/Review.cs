@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TurathApi.Models
 {
@@ -7,6 +8,8 @@ namespace TurathApi.Models
         public int Id { get; set; }
 
         [Required]
+        [MaxLength(450)]
+        [Column("customer_id")]
         public string CustomerId { get; set; } = string.Empty;
         public ApplicationUser? Customer { get; set; }
 

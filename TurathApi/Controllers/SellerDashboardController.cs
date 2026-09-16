@@ -52,15 +52,15 @@ namespace TurathApi.Controllers
                 .CountAsync(b => b.SellerId == sellerId);
 
             var totalOrders = await _context.OrderItems
-                .Where(oi => _context.Books
-                    .Any(b => b.Id == oi.ProductId.ToString() && b.SellerId == sellerId))
-                .Select(oi => oi.OrderId)
-                .Distinct()
-                .CountAsync();
+                            .Where(oi => _context.Books
+                            .Any(b => b.Id == oi.ProductId && b.SellerId == sellerId))
+                            .Select(oi => oi.OrderId)
+                            .Distinct()
+                            .CountAsync();
 
             var totalRevenue = await _context.OrderItems
                 .Where(oi => _context.Books
-                    .Any(b => b.Id == oi.ProductId.ToString() && b.SellerId == sellerId))
+                    .Any(b => b.Id == oi.ProductId && b.SellerId == sellerId))
                 .SumAsync(oi => oi.Price * oi.Quantity);
 
             return Ok(new SellerDashboardDto

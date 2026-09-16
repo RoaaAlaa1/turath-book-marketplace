@@ -9,7 +9,7 @@ namespace TurathApi.DTOs
         public string CustomerId { get; set; } = string.Empty;
 
         [Required]
-        public Guid ProductId { get; set; }
+        public int ProductId { get; set; }
 
         [Range(1, int.MaxValue, ErrorMessage = "Quantity must be at least 1.")]
         public int Quantity { get; set; }
@@ -21,7 +21,7 @@ namespace TurathApi.DTOs
         public string CustomerId { get; set; } = string.Empty;
 
         [Required]
-        public Guid ProductId { get; set; }
+        public int ProductId { get; set; }
 
         public int Quantity { get; set; }
     }
@@ -32,7 +32,7 @@ namespace TurathApi.DTOs
         public string CustomerId { get; set; } = string.Empty;
 
         [Required]
-        public Guid ProductId { get; set; }
+        public int ProductId { get; set; }
     }
 
     public class CheckoutDto
