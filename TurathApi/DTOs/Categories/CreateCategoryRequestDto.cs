@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace TurathApi.DTOs
+namespace TurathApi.DTOs.Categories
 {
     public class CreateCategoryRequestDto
     {

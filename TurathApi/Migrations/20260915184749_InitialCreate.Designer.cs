@@ -12,8 +12,8 @@ using TurathApi.Data;
 namespace TurathApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260913214343_AddIdentityTables")]
-    partial class AddIdentityTables
+    [Migration("20260915184749_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -286,8 +286,9 @@ namespace TurathApi.Migrations
                         .HasColumnType("int")
                         .HasColumnName("quantity");
 
-                    b.Property<int>("SellerId")
-                        .HasColumnType("int")
+                    b.Property<string>("SellerId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)")
                         .HasColumnName("seller_id");
 
                     b.Property<string>("Title")
@@ -299,84 +300,9 @@ namespace TurathApi.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.ToTable("Books", (string)null);
+                    b.HasIndex("SellerId");
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            AgeRating = "All Ages",
-                            ApprovalStatus = "Approved",
-                            Author = "Paulo Coelho",
-                            CategoryId = 1,
-                            Condition = "LikeNew",
-                            Description = "A shepherd boy's journey to find treasure and discover his personal legend.",
-                            ImageUrl = "/images/books/the-alchemist.jpg",
-                            Price = 85.00m,
-                            Quantity = 4,
-                            SellerId = 1,
-                            Title = "The Alchemist"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            AgeRating = "All Ages",
-                            ApprovalStatus = "Approved",
-                            Author = "Robert C. Martin",
-                            CategoryId = 2,
-                            Condition = "Good",
-                            Description = "A handbook of agile software craftsmanship, covering principles and practices for writing readable, maintainable code.",
-                            ImageUrl = "/images/books/clean-code.jpg",
-                            Price = 220.00m,
-                            Quantity = 2,
-                            SellerId = 2,
-                            Title = "Clean Code"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            AgeRating = "8+",
-                            ApprovalStatus = "Approved",
-                            Author = "E. B. White",
-                            CategoryId = 3,
-                            Condition = "Acceptable",
-                            Description = "A classic story of friendship between a pig named Wilbur and a spider named Charlotte.",
-                            ImageUrl = "/images/books/charlottes-web.jpg",
-                            Price = 60.00m,
-                            Quantity = 6,
-                            SellerId = 3,
-                            Title = "Charlotte's Web"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            AgeRating = "16+",
-                            ApprovalStatus = "Approved",
-                            Author = "Yuval Noah Harari",
-                            CategoryId = 4,
-                            Condition = "Good",
-                            Description = "An exploration of how Homo sapiens came to dominate the world, from the cognitive revolution to today.",
-                            ImageUrl = "/images/books/sapiens.jpg",
-                            Price = 150.00m,
-                            Quantity = 3,
-                            SellerId = 1,
-                            Title = "Sapiens: A Brief History of Humankind"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            AgeRating = "All Ages",
-                            ApprovalStatus = "Pending",
-                            Author = "Unknown",
-                            CategoryId = 1,
-                            Condition = "Acceptable",
-                            Description = "Awaiting copyright verification before it can be listed publicly.",
-                            ImageUrl = "/images/books/placeholder.jpg",
-                            Price = 40.00m,
-                            Quantity = 1,
-                            SellerId = 2,
-                            Title = "Untitled Manuscript Draft"
-                        });
+                    b.ToTable("Books", (string)null);
                 });
 
             modelBuilder.Entity("TurathApi.Models.Cart", b =>
@@ -461,6 +387,32 @@ namespace TurathApi.Migrations
                         });
                 });
 
+            modelBuilder.Entity("TurathApi.Models.CategoryRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CategoryName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SellerId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CategoryRequests");
+                });
+
             modelBuilder.Entity("TurathApi.Models.Comment", b =>
                 {
                     b.Property<int>("Id")
@@ -477,8 +429,9 @@ namespace TurathApi.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -560,8 +513,9 @@ namespace TurathApi.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("created_at");
 
-                    b.Property<int>("CustomerId")
-                        .HasColumnType("int")
+                    b.Property<string>("CustomerId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)")
                         .HasColumnName("customer_id");
 
                     b.Property<float>("Rating")
@@ -569,6 +523,10 @@ namespace TurathApi.Migrations
                         .HasColumnName("rating");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BookId");
+
+                    b.HasIndex("CustomerId");
 
                     b.ToTable("Reviews", (string)null);
                 });
@@ -632,7 +590,15 @@ namespace TurathApi.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("TurathApi.Models.ApplicationUser", "Seller")
+                        .WithMany()
+                        .HasForeignKey("SellerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Category");
+
+                    b.Navigation("Seller");
                 });
 
             modelBuilder.Entity("TurathApi.Models.CartItem", b =>
@@ -655,6 +621,30 @@ namespace TurathApi.Migrations
                         .IsRequired();
 
                     b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("TurathApi.Models.Review", b =>
+                {
+                    b.HasOne("TurathApi.Models.Book", "Book")
+                        .WithMany("Reviews")
+                        .HasForeignKey("BookId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("TurathApi.Models.ApplicationUser", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Book");
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("TurathApi.Models.Book", b =>
+                {
+                    b.Navigation("Reviews");
                 });
 
             modelBuilder.Entity("TurathApi.Models.Cart", b =>

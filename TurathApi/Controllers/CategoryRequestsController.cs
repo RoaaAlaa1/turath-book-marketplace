@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TurathApi.Data;
+using TurathApi.Models;
+using TurathApi.DTOs.Categories;
 using TurathApi.DTOs;
 using TurathApi.Models;
 

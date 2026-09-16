@@ -5,7 +5,7 @@
 namespace TurathApi.Migrations
 {
     /// <inheritdoc />
-    public partial class Chatbotmodel : Migration
+    public partial class AddedChatbot : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

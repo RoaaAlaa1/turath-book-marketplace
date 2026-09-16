@@ -6,8 +6,7 @@ namespace TurathApi.Models
         public int Id { get; set; }
 
         [Required]
-        public int UserId { get; set; }
-
+        public string UserId { get; set; } = string.Empty;
         [Required]
         [MaxLength(1000)]
         public string Content { get; set; } = string.Empty;

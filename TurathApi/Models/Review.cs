@@ -8,9 +8,10 @@ namespace TurathApi.Models
 
         [Required]
         public string CustomerId { get; set; } = string.Empty;
+        public ApplicationUser? Customer { get; set; }
 
-        [Required]
         public int BookId { get; set; }
+        public Book? Book { get; set; }
 
         [Range(1, 5)]
         public float Rating { get; set; }

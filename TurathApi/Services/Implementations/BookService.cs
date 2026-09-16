@@ -1,37 +1,23 @@
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
+Ôªøusing Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
+using TurathApi.DTOs;
 using TurathApi.DTOs.Books;
 using TurathApi.Models;
 using TurathApi.Models.Enums;
+using TurathApi.Services.Interfaces;
 
-namespace TurathApi.Controllers
+namespace TurathApi.Services.Implementations
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class BooksController : ControllerBase
+    public class BookService : IBookService
     {
         private readonly AppDbContext _context;
 
-        public BooksController(AppDbContext context)
+        public BookService(AppDbContext context)
         {
             _context = context;
         }
 
-        // ==================== PUBLIC ENDPOINTS ====================
-
-        /// <summary>
-        /// GET /api/books
-        /// Returns the public catalog ó approved books only.
-        /// </summary>
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<BookResponseDto>>> GetAll(
-            [FromQuery] string? search,
-            [FromQuery] int? categoryId,
-            [FromQuery] string? sort)
+        public async Task<IEnumerable<BookResponseDto>> GetAllApprovedAsync(string? search, int? categoryId, string? sort)
         {
             var query = _context.Books
                 .Include(b => b.Category)
@@ -57,7 +43,7 @@ namespace TurathApi.Controllers
                 _ => query.OrderBy(b => b.Id)
             };
 
-            var books = await query.Select(b => new BookResponseDto
+            return await query.Select(b => new BookResponseDto
             {
                 Id = b.Id,
                 Title = b.Title,
@@ -73,22 +59,17 @@ namespace TurathApi.Controllers
                 AgeRating = b.AgeRating,
                 ApprovalStatus = b.ApprovalStatus
             }).ToListAsync();
-
-            return Ok(books);
         }
 
-        [HttpGet("{id:int}")]
-        public async Task<ActionResult<BookResponseDto>> GetById(int id)
+        public async Task<BookResponseDto?> GetByIdAsync(int id)
         {
             var book = await _context.Books
                 .Include(b => b.Category)
-                .Include(b => b.Reviews)
-                .FirstOrDefaultAsync(b => b.Id == id);
+                .FirstOrDefaultAsync(b => b.Id == id && b.ApprovalStatus == ApprovalStatus.Approved);
 
-            if (book is null || book.ApprovalStatus != ApprovalStatus.Approved)
-                return NotFound();
+            if (book == null) return null;
 
-            var dto = new BookResponseDto
+            return new BookResponseDto
             {
                 Id = book.Id,
                 Title = book.Title,
@@ -104,23 +85,11 @@ namespace TurathApi.Controllers
                 AgeRating = book.AgeRating,
                 ApprovalStatus = book.ApprovalStatus
             };
-
-            return Ok(book);
         }
 
-        // ==================== SELLER-OWNED BOOKS (PROTECTED) ====================
-
-        [HttpGet("mine")]
-        [Authorize]
-        public async Task<IActionResult> GetMyBooks()
+        public async Task<IEnumerable<BookResponseDto>> GetSellerBooksAsync(string sellerId)
         {
-            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdClaim, out int sellerId))
-            {
-                return Unauthorized("„⁄—¯› «·„” Œœ„ €Ì— ’«·Õ.");
-            }
-
-            var books = await _context.Books
+            return await _context.Books
                 .Include(b => b.Category)
                 .Where(b => b.SellerId == sellerId)
                 .Select(b => new BookResponseDto
@@ -138,22 +107,15 @@ namespace TurathApi.Controllers
                     Condition = b.Condition,
                     AgeRating = b.AgeRating,
                     ApprovalStatus = b.ApprovalStatus
-                })
-                .ToListAsync();
-
-            return Ok(books);
+                }).ToListAsync();
         }
 
-
-        [Authorize]
-        [HttpPost]
-        [Authorize]
-        public async Task<IActionResult> Create(Book book)
+        public async Task<BookResponseDto> CreateBookAsync(CreateBookDto dto, string sellerId)
         {
-            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdClaim, out int sellerId))
+            var categoryExists = await _context.Categories.AnyAsync(c => c.Id == dto.CategoryId);
+            if (!categoryExists)
             {
-                return Unauthorized("„⁄—¯› «·„” Œœ„ €Ì— ’«·Õ.");
+                throw new ArgumentException($"Category with ID {dto.CategoryId} does not exist.");
             }
 
             var book = new Book
@@ -172,30 +134,22 @@ namespace TurathApi.Controllers
             };
 
             _context.Books.Add(book);
-           
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetById), new { id = book.Id }, book);
+            return await GetByIdAsync(book.Id) ?? new BookResponseDto { Id = book.Id, Title = book.Title };
         }
 
-
-        [Authorize]
-        [HttpPut("{id:int}")]
-        [Authorize]
-        public async Task<IActionResult> Edit(int id, Book book)
+        public async Task<bool> UpdateBookAsync(int id, UpdateBookDto dto, string sellerId)
         {
-            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdClaim, out int sellerId))
-            {
-                return Unauthorized("„⁄—¯› «·„” Œœ„ €Ì— ’«·Õ.");
-            }
-
             var existingBook = await _context.Books
                 .FirstOrDefaultAsync(b => b.Id == id && b.SellerId == sellerId);
 
-            if (existingBook == null)
+            if (existingBook == null) return false;
+
+            var categoryExists = await _context.Categories.AnyAsync(c => c.Id == dto.CategoryId);
+            if (!categoryExists)
             {
-                return NotFound("«·ﬂ «» €Ì— „ÊÃÊœ √Ê ·«  „·ﬂ ’·«ÕÌ…  ⁄œÌ·Â.");
+                throw new ArgumentException($"Category with ID {dto.CategoryId} does not exist.");
             }
 
             existingBook.Title = dto.Title;
@@ -207,37 +161,22 @@ namespace TurathApi.Controllers
             existingBook.Quantity = dto.Quantity;
             existingBook.CategoryId = dto.CategoryId;
             existingBook.ImageUrl = dto.ImageUrl;
-
             existingBook.ApprovalStatus = ApprovalStatus.Pending;
 
             await _context.SaveChangesAsync();
-
-            return NoContent();
+            return true;
         }
 
-        [HttpDelete("{id:int}")]
-        [Authorize]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<bool> DeleteBookAsync(int id, string sellerId)
         {
-            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdClaim, out int sellerId))
-            {
-                return Unauthorized("„⁄—¯› «·„” Œœ„ €Ì— ’«·Õ.");
-            }
-
             var book = await _context.Books
                 .FirstOrDefaultAsync(b => b.Id == id && b.SellerId == sellerId);
 
-            if (book == null)
-            {
-                return NotFound("«·ﬂ «» €Ì— „ÊÃÊœ √Ê ·«  „·ﬂ ’·«ÕÌ… Õ–›Â.");
-            }
+            if (book == null) return false;
 
             _context.Books.Remove(book);
-  
             await _context.SaveChangesAsync();
-
-            return NoContent();
+            return true;
         }
     }
 }

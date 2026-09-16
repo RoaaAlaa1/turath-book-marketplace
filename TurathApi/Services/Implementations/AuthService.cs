@@ -5,8 +5,9 @@ using System.Security.Claims;
 using System.Text;
 using TurathApi.DTOs.Auth;
 using TurathApi.Models;
+using TurathApi.Services.Interfaces;
 
-namespace TurathApi.Services
+namespace TurathApi.Services.Implementations
 {
     public class AuthService : IAuthService
     {

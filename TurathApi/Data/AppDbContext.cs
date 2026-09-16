@@ -4,7 +4,6 @@ using TurathApi.Models;
 
 namespace TurathApi.Data
 {
-    // تحويل الكلاس ليورث من IdentityDbContext مع ApplicationUser
     public class AppDbContext : IdentityDbContext<ApplicationUser>
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
@@ -19,12 +18,11 @@ namespace TurathApi.Data
         public DbSet<OrderItem> OrderItems => Set<OrderItem>();
         public DbSet<Book> Books => Set<Book>();
         public DbSet<Category> Categories => Set<Category>();
-        public DbSet<Comment> Comments { get; set; }
+        public DbSet<Comment> Comments => Set<Comment>();
         public DbSet<CategoryRequest> CategoryRequests => Set<CategoryRequest>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // ضروري جداً لتسجيل جداول Identity الأساسية (AspNetUsers, AspNetRoles, ...)
             base.OnModelCreating(modelBuilder);
 
             // 1. ضبط جدول SellerRequests
@@ -64,6 +62,17 @@ namespace TurathApi.Data
                 entity.Property(r => r.Rating).HasColumnName("rating");
                 entity.Property(r => r.Comment).HasColumnName("comment").IsRequired();
                 entity.Property(r => r.CreatedAt).HasColumnName("created_at");
+
+                entity.HasOne(r => r.Book)
+                    .WithMany(b => b.Reviews)
+                    .HasForeignKey(r => r.BookId)
+                    .OnDelete(DeleteBehavior.NoAction);
+
+                
+                entity.HasOne(r => r.Customer)
+                    .WithMany()
+                    .HasForeignKey(r => r.CustomerId)
+                    .OnDelete(DeleteBehavior.NoAction);
             });
 
             modelBuilder.Entity<Cart>(entity =>
@@ -119,15 +128,9 @@ namespace TurathApi.Data
                     .HasForeignKey(b => b.CategoryId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                // One-directional: Review has no navigation back to Book,
-                // it just uses the BookId column that already exists.
-                entity.HasMany(b => b.Reviews)
-                    .WithOne()
-                    .HasForeignKey(r => r.BookId)
-                    .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // Seed data — lets the rest of the team build against real rows immediately.
+            // Seed data 
             modelBuilder.Entity<Category>().HasData(
                 new Category { Id = 1, Name = "Fiction" },
                 new Category { Id = 2, Name = "Science & Technology" },
@@ -135,83 +138,7 @@ namespace TurathApi.Data
                 new Category { Id = 4, Name = "History" }
             );
 
-            modelBuilder.Entity<Book>().HasData(
-                new Book
-                {
-                    Id = 1,
-                    Title = "The Alchemist",
-                    Author = "Paulo Coelho",
-                    Description = "A shepherd boy's journey to find treasure and discover his personal legend.",
-                    Price = 85.00m,
-                    Quantity = 4,
-                    CategoryId = 1,
-                    SellerId = 1,
-                    ImageUrl = "/images/books/the-alchemist.jpg",
-                    Condition = TurathApi.Models.Enums.BookCondition.LikeNew,
-                    AgeRating = "All Ages",
-                    ApprovalStatus = TurathApi.Models.Enums.ApprovalStatus.Approved
-                },
-                new Book
-                {
-                    Id = 2,
-                    Title = "Clean Code",
-                    Author = "Robert C. Martin",
-                    Description = "A handbook of agile software craftsmanship, covering principles and practices for writing readable, maintainable code.",
-                    Price = 220.00m,
-                    Quantity = 2,
-                    CategoryId = 2,
-                    SellerId = 2,
-                    ImageUrl = "/images/books/clean-code.jpg",
-                    Condition = TurathApi.Models.Enums.BookCondition.Good,
-                    AgeRating = "All Ages",
-                    ApprovalStatus = TurathApi.Models.Enums.ApprovalStatus.Approved
-                },
-                new Book
-                {
-                    Id = 3,
-                    Title = "Charlotte's Web",
-                    Author = "E. B. White",
-                    Description = "A classic story of friendship between a pig named Wilbur and a spider named Charlotte.",
-                    Price = 60.00m,
-                    Quantity = 6,
-                    CategoryId = 3,
-                    SellerId = 3,
-                    ImageUrl = "/images/books/charlottes-web.jpg",
-                    Condition = TurathApi.Models.Enums.BookCondition.Acceptable,
-                    AgeRating = "8+",
-                    ApprovalStatus = TurathApi.Models.Enums.ApprovalStatus.Approved
-                },
-                new Book
-                {
-                    Id = 4,
-                    Title = "Sapiens: A Brief History of Humankind",
-                    Author = "Yuval Noah Harari",
-                    Description = "An exploration of how Homo sapiens came to dominate the world, from the cognitive revolution to today.",
-                    Price = 150.00m,
-                    Quantity = 3,
-                    CategoryId = 4,
-                    SellerId = 1,
-                    ImageUrl = "/images/books/sapiens.jpg",
-                    Condition = TurathApi.Models.Enums.BookCondition.Good,
-                    AgeRating = "16+",
-                    ApprovalStatus = TurathApi.Models.Enums.ApprovalStatus.Approved
-                },
-                new Book
-                {
-                    Id = 5,
-                    Title = "Untitled Manuscript Draft",
-                    Author = "Unknown",
-                    Description = "Awaiting copyright verification before it can be listed publicly.",
-                    Price = 40.00m,
-                    Quantity = 1,
-                    CategoryId = 1,
-                    SellerId = 2,
-                    ImageUrl = "/images/books/placeholder.jpg",
-                    Condition = TurathApi.Models.Enums.BookCondition.Acceptable,
-                    AgeRating = "All Ages",
-                    ApprovalStatus = TurathApi.Models.Enums.ApprovalStatus.Pending
-                }
-            );
+           
         }
     }
 }

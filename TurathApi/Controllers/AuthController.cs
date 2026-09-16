@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using TurathApi.DTOs.Auth;
-using TurathApi.Services;
+using TurathApi.Services.Interfaces;
 
 namespace TurathApi.Controllers
 {

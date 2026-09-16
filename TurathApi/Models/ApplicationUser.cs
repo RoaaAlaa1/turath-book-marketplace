@@ -2,7 +2,6 @@
 
 namespace TurathApi.Models
 {
-    // بنورث من IdentityUser عشان ناخد مميزات Security جاهزة زي Hashing, Email Confirmation, Lockout Count
     public class ApplicationUser : IdentityUser
     {
         public string FirstName { get; set; } = string.Empty;
