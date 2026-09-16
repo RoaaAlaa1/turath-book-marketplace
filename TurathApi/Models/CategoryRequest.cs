@@ -11,6 +11,9 @@ namespace TurathApi.Models
         [Required]
         public string SellerId { get; set; } = string.Empty;
 
+        [ForeignKey(nameof(SellerId))]
+        public ApplicationUser? Seller { get; set; }
+
         [Required]
         public string CategoryName { get; set; } = string.Empty;
 

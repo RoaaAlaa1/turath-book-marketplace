@@ -11,6 +11,7 @@ namespace TurathApi.Data
         }
 
         public DbSet<Review> Reviews => Set<Review>();
+        public DbSet<SellerRequest> SellerRequests { get; set; }
         public DbSet<Cart> Carts => Set<Cart>();
         public DbSet<CartItem> CartItems => Set<CartItem>();
         public DbSet<Order> Orders => Set<Order>();
@@ -24,6 +25,33 @@ namespace TurathApi.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            // 1. ضبط جدول SellerRequests
+            modelBuilder.Entity<SellerRequest>(entity =>
+            {
+                entity.ToTable("SellerRequests");
+                entity.HasKey(r => r.Id);
+                entity.Property(r => r.Id).HasColumnName("id");
+                entity.Property(r => r.UserId).HasColumnName("user_id").IsRequired();
+                entity.Property(r => r.Status).HasColumnName("status").HasConversion<string>();
+                entity.Property(r => r.RequestedAt).HasColumnName("requested_at");
+                entity.Property(r => r.ProcessedAt).HasColumnName("processed_at");
+
+                entity.HasOne(r => r.User)
+                    .WithMany()
+                    .HasForeignKey(r => r.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // 2. ضبط جدول CategoryRequests لمنع مسارات الحذف المتتابعة المتعددة (Cascade Paths Cycle)
+            modelBuilder.Entity<CategoryRequest>(entity =>
+            {
+                entity.HasOne(cr => cr.Seller)
+                    .WithMany()
+                    .HasForeignKey(cr => cr.SellerId)
+                    .OnDelete(DeleteBehavior.Restrict); // تعيين الحذف إلى Restrict لمنع خطأ FK_CategoryRequests
+            });
+
+            // 3. ضبط باقي الجداول
             modelBuilder.Entity<Review>(entity =>
             {
                 entity.ToTable("Reviews");
