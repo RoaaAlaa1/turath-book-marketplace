@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TurathApi.DTOs;
 using TurathApi.DTOs.Reviews;
 using TurathApi.Models;
 using TurathApi.Services.Interfaces;
@@ -75,8 +76,7 @@ namespace TurathApi.Controllers
                 }
 
                 dto.CustomerId = currentUserId;
-            try
-            {
+
                 var createdReview = await _reviewService.AddReviewAsync(dto);
                 return CreatedAtAction(nameof(GetReview), new { id = createdReview.Id }, createdReview);
             }
@@ -149,7 +149,7 @@ namespace TurathApi.Controllers
             {
                 var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 var review = await _reviewService.GetByIdAsync(id);
-                
+
                 if (review == null)
                 {
                     return NotFound(new { message = "Review not found." });
@@ -177,8 +177,9 @@ namespace TurathApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "An error occurred while deleting review {ReviewId}.", id);
-                return StatusCode(500, new { message = "An internal server error-occurred." });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
     }
+
 }
