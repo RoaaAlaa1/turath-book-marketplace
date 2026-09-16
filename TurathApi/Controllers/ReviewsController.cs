@@ -76,7 +76,8 @@ namespace TurathApi.Controllers
                 }
 
                 dto.CustomerId = currentUserId;
-
+            try
+            {
                 var createdReview = await _reviewService.AddReviewAsync(dto);
                 return CreatedAtAction(nameof(GetReview), new { id = createdReview.Id }, createdReview);
             }
