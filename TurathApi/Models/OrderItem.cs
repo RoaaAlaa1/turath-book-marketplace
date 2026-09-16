@@ -11,7 +11,7 @@ namespace TurathApi.Models
         [JsonIgnore]
         public Order Order { get; set; } = null!;
 
-        public Guid ProductId { get; set; }
+        public int ProductId { get; set; }
         public int Quantity { get; set; }
         public decimal Price { get; set; }
     }
