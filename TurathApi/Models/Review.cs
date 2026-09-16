@@ -7,7 +7,7 @@ namespace TurathApi.Models
         public int Id { get; set; }
 
         [Required]
-        public int CustomerId { get; set; }
+        public string CustomerId { get; set; } = string.Empty;
 
         [Required]
         public int BookId { get; set; }
@@ -20,7 +20,5 @@ namespace TurathApi.Models
         public string Comment { get; set; } = string.Empty;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-
     }
 }

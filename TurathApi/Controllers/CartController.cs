@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
 using TurathApi.DTOs;
@@ -8,6 +10,7 @@ namespace TurathApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class CartController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -17,31 +20,51 @@ namespace TurathApi.Controllers
             _context = context;
         }
 
-        [HttpGet("{customerId}")]
-        public async Task<IActionResult> GetCart(string customerId)
+        /// <summary>
+        /// GET /api/cart
+        /// Returns the cart for the authenticated customer.
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> GetCart()
         {
+            var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(customerId))
+            {
+                return Unauthorized("معرّف المستخدم غير صالح.");
+            }
+
             var cart = await _context.Carts
                 .Include(c => c.CartItems)
                 .FirstOrDefaultAsync(c => c.CustomerId == customerId);
 
             if (cart == null)
             {
-                return NotFound(new { message = "Cart is empty or not found for this customer." });
+                return NotFound(new { message = "السلة فارغة أو غير موجودة لهذا العميل." });
             }
 
             return Ok(cart);
         }
 
+        /// <summary>
+        /// POST /api/cart/add
+        /// Adds a product to the authenticated user's cart.
+        /// </summary>
         [HttpPost("add")]
         public async Task<IActionResult> AddToCart([FromBody] AddToCartDto dto)
         {
+            var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(customerId))
+            {
+                return Unauthorized("معرّف المستخدم غير صالح.");
+            }
+
             var cart = await _context.Carts
                 .Include(c => c.CartItems)
-                .FirstOrDefaultAsync(c => c.CustomerId == dto.CustomerId);
+                .FirstOrDefaultAsync(c => c.CustomerId == customerId);
 
             if (cart == null)
             {
-                cart = new Cart { CustomerId = dto.CustomerId };
+                cart = new Cart { CustomerId = customerId };
                 _context.Carts.Add(cart);
                 await _context.SaveChangesAsync();
             }
@@ -65,18 +88,28 @@ namespace TurathApi.Controllers
             }
 
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Item added to cart successfully." });
+            return Ok(new { message = "تمت إضافة المنتج إلى السلة بنجاح." });
         }
 
+        /// <summary>
+        /// PUT /api/cart/update-item
+        /// Updates item quantity in the authenticated user's cart.
+        /// </summary>
         [HttpPut("update-item")]
         public async Task<IActionResult> UpdateCartItem([FromBody] UpdateCartItemDto dto)
         {
+            var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(customerId))
+            {
+                return Unauthorized("معرّف المستخدم غير صالح.");
+            }
+
             var cart = await _context.Carts
-                .FirstOrDefaultAsync(c => c.CustomerId == dto.CustomerId);
+                .FirstOrDefaultAsync(c => c.CustomerId == customerId);
 
             if (cart == null)
             {
-                return NotFound(new { message = "Cart not found." });
+                return NotFound(new { message = "السلة غير موجودة." });
             }
 
             var cartItem = await _context.CartItems
@@ -84,7 +117,7 @@ namespace TurathApi.Controllers
 
             if (cartItem == null)
             {
-                return NotFound(new { message = "Item not found in cart." });
+                return NotFound(new { message = "المنتج غير موجود داخل السلة." });
             }
 
             if (dto.Quantity <= 0)
@@ -97,50 +130,70 @@ namespace TurathApi.Controllers
             }
 
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Cart updated successfully." });
+            return Ok(new { message = "تم تحديث السلة بنجاح." });
         }
 
+        /// <summary>
+        /// DELETE /api/cart/remove-item
+        /// Removes an item from the authenticated user's cart.
+        /// </summary>
         [HttpDelete("remove-item")]
         public async Task<IActionResult> RemoveCartItem([FromBody] RemoveCartItemDto dto)
         {
+            var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(customerId))
+            {
+                return Unauthorized("معرّف المستخدم غير صالح.");
+            }
+
             var cart = await _context.Carts
                 .Include(c => c.CartItems)
-                .FirstOrDefaultAsync(c => c.CustomerId == dto.CustomerId);
+                .FirstOrDefaultAsync(c => c.CustomerId == customerId);
 
             if (cart == null)
             {
-                return NotFound(new { message = "Cart not found." });
+                return NotFound(new { message = "السلة غير موجودة." });
             }
 
             var cartItem = cart.CartItems.FirstOrDefault(i => i.ProductId == dto.ProductId);
             if (cartItem == null)
             {
-                return NotFound(new { message = "Item not found in cart." });
+                return NotFound(new { message = "المنتج غير موجود داخل السلة." });
             }
 
             _context.CartItems.Remove(cartItem);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Item removed from cart successfully." });
+            return Ok(new { message = "تم إزالة المنتج من السلة بنجاح." });
         }
 
+        /// <summary>
+        /// POST /api/cart/checkout
+        /// Creates an order from the current cart items for the authenticated user.
+        /// </summary>
         [HttpPost("checkout")]
-        public async Task<IActionResult> Checkout([FromBody] CheckoutDto dto)
+        public async Task<IActionResult> Checkout()
         {
+            var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(customerId))
+            {
+                return Unauthorized("معرّف المستخدم غير صالح.");
+            }
+
             var cart = await _context.Carts
                 .Include(c => c.CartItems)
-                .FirstOrDefaultAsync(c => c.CustomerId == dto.CustomerId);
+                .FirstOrDefaultAsync(c => c.CustomerId == customerId);
 
             if (cart == null || !cart.CartItems.Any())
             {
-                return BadRequest(new { message = "Cart is empty, cannot checkout." });
+                return BadRequest(new { message = "السلة فارغة، لا يمكن إتمام عملية الشراء." });
             }
 
             decimal totalAmount = cart.CartItems.Sum(item => item.Quantity * 10);
 
             var order = new Order
             {
-                CustomerId = dto.CustomerId,
+                CustomerId = customerId,
                 Total = totalAmount,
                 Status = "Pending",
                 CreatedAt = DateTime.UtcNow
@@ -161,7 +214,8 @@ namespace TurathApi.Controllers
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Checkout completed successfully.", orderId = order.Id });
+            return Ok(new { message = "تم إتمام الطلب بنجاح.", orderId = order.Id });
         }
     }
+
 }

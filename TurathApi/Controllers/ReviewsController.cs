@@ -1,8 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
 using TurathApi.DTOs;
 using TurathApi.Models;
-using Microsoft.AspNetCore.Mvc;
 
 namespace TurathApi.Controllers
 {
@@ -12,7 +14,7 @@ namespace TurathApi.Controllers
     {
         private readonly AppDbContext _context;
         private readonly ILogger<ReviewsController> _logger;
-
+        
         public ReviewsController(AppDbContext context, ILogger<ReviewsController> logger)
         {
             _context = context;
@@ -21,6 +23,7 @@ namespace TurathApi.Controllers
 
         // GET: api/reviews/get-all-reviews
         [HttpGet("get-all-reviews")]
+        [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<Review>>> GetReviews()
         {
             try
@@ -37,6 +40,7 @@ namespace TurathApi.Controllers
 
         // GET: api/reviews/get-review/{id}
         [HttpGet("get-review/{id:int}")]
+        [AllowAnonymous]
         public async Task<ActionResult<Review>> GetReview(int id)
         {
             try
@@ -57,8 +61,8 @@ namespace TurathApi.Controllers
         }
 
         // GET: api/reviews/book/{bookId}
-        // Returns all reviews for a specific book plus the average rating.
         [HttpGet("book/{bookId:int}")]
+        [AllowAnonymous]
         public async Task<ActionResult> GetReviewsForBook(int bookId)
         {
             try
@@ -88,11 +92,17 @@ namespace TurathApi.Controllers
 
         // POST: api/reviews/create
         [HttpPost("create")]
+        [Authorize]
         public async Task<ActionResult<Review>> CreateReview([FromBody] CreateReviewDto dto)
         {
             try
             {
-                // Validate DTO
+                var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(customerId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+
                 if (!ModelState.IsValid)
                 {
                     return BadRequest(new
@@ -104,7 +114,7 @@ namespace TurathApi.Controllers
 
                 var review = new Review
                 {
-                    CustomerId = dto.CustomerId,
+                    CustomerId = customerId,
                     BookId = dto.BookId,
                     Rating = dto.Rating,
                     Comment = dto.Comment,
@@ -125,10 +135,17 @@ namespace TurathApi.Controllers
 
         // PUT: api/reviews/update/{id}
         [HttpPut("update/{id:int}")]
+        [Authorize]
         public async Task<IActionResult> UpdateReview(int id, [FromBody] UpdateReviewDto dto)
         {
             try
             {
+                var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(customerId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+
                 if (!ModelState.IsValid)
                 {
                     return BadRequest(new
@@ -138,10 +155,10 @@ namespace TurathApi.Controllers
                     });
                 }
 
-                var review = await _context.Reviews.FindAsync(id);
+                var review = await _context.Reviews.FirstOrDefaultAsync(r => r.Id == id && r.CustomerId == customerId);
                 if (review == null)
                 {
-                    return NotFound(new { message = "Review not found" });
+                    return NotFound(new { message = "Review not found or you are not authorized to edit it" });
                 }
 
                 review.Rating = dto.Rating;
@@ -159,14 +176,21 @@ namespace TurathApi.Controllers
 
         // DELETE: api/reviews/delete/{id}
         [HttpDelete("delete/{id:int}")]
+        [Authorize]
         public async Task<IActionResult> DeleteReview(int id)
         {
             try
             {
-                var review = await _context.Reviews.FindAsync(id);
+                var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(customerId))
+                {
+                    return Unauthorized(new { message = "Invalid user identifier" });
+                }
+
+                var review = await _context.Reviews.FirstOrDefaultAsync(r => r.Id == id && r.CustomerId == customerId);
                 if (review == null)
                 {
-                    return NotFound(new { message = "Review not found" });
+                    return NotFound(new { message = "Review not found or you are not authorized to delete it" });
                 }
 
                 _context.Reviews.Remove(review);

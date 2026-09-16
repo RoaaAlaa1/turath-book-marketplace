@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
@@ -16,6 +18,8 @@ namespace TurathApi.Controllers
         {
             _context = context;
         }
+
+        // ==================== PUBLIC ENDPOINTS ====================
 
         /// <summary>
         /// GET /api/books
@@ -74,20 +78,21 @@ namespace TurathApi.Controllers
             return Ok(book);
         }
 
-        // ---------------------------------------------------------------
-        // SELLER-OWNED BOOKS
-        // NOTE: sellerId is hardcoded for now — swap for the authenticated
-        // user's id once auth is wired up.
-        // ---------------------------------------------------------------
+        // ==================== SELLER-OWNED BOOKS (PROTECTED) ====================
 
         /// <summary>
         /// GET /api/books/mine
         /// View the seller's own books (any approval status).
         /// </summary>
         [HttpGet("mine")]
+        [Authorize]
         public async Task<IActionResult> GetMyBooks()
         {
-            const int sellerId = 1;
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdClaim, out int sellerId))
+            {
+                return Unauthorized("معرّف المستخدم غير صالح.");
+            }
 
             var books = await _context.Books
                 .Where(b => b.SellerId == sellerId)
@@ -101,15 +106,20 @@ namespace TurathApi.Controllers
         /// Add a new book (goes in as Pending).
         /// </summary>
         [HttpPost]
+        [Authorize]
         public async Task<IActionResult> Create(Book book)
         {
-            const int sellerId = 1;
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdClaim, out int sellerId))
+            {
+                return Unauthorized("معرّف المستخدم غير صالح.");
+            }
 
             book.SellerId = sellerId;
             book.ApprovalStatus = ApprovalStatus.Pending;
 
             _context.Books.Add(book);
-
+           
             await _context.SaveChangesAsync();
 
             return CreatedAtAction(
@@ -123,17 +133,21 @@ namespace TurathApi.Controllers
         /// Edit the seller's own book.
         /// </summary>
         [HttpPut("{id:int}")]
+        [Authorize]
         public async Task<IActionResult> Edit(int id, Book book)
         {
-            const int sellerId = 1;
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdClaim, out int sellerId))
+            {
+                return Unauthorized("معرّف المستخدم غير صالح.");
+            }
 
             var existingBook = await _context.Books
-                .FirstOrDefaultAsync(
-                    b => b.Id == id && b.SellerId == sellerId);
+                .FirstOrDefaultAsync(b => b.Id == id && b.SellerId == sellerId);
 
             if (existingBook == null)
             {
-                return NotFound();
+                return NotFound("الكتاب غير موجود أو لا تملك صلاحية تعديله.");
             }
 
             existingBook.Title = book.Title;
@@ -156,21 +170,25 @@ namespace TurathApi.Controllers
         /// Delete the seller's own book.
         /// </summary>
         [HttpDelete("{id:int}")]
+        [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
-            const int sellerId = 1;
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdClaim, out int sellerId))
+            {
+                return Unauthorized("معرّف المستخدم غير صالح.");
+            }
 
             var book = await _context.Books
-                .FirstOrDefaultAsync(
-                    b => b.Id == id && b.SellerId == sellerId);
+                .FirstOrDefaultAsync(b => b.Id == id && b.SellerId == sellerId);
 
             if (book == null)
             {
-                return NotFound();
+                return NotFound("الكتاب غير موجود أو لا تملك صلاحية حذفه.");
             }
 
             _context.Books.Remove(book);
-
+  
             await _context.SaveChangesAsync();
 
             return NoContent();

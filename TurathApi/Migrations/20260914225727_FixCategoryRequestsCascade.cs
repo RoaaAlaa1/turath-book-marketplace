@@ -10,9 +10,7 @@ namespace TurathApi.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_CategoryRequests_AspNetUsers_SellerId",
-                table: "CategoryRequests");
+           
 
             migrationBuilder.AddForeignKey(
                 name: "FK_CategoryRequests_AspNetUsers_SellerId",

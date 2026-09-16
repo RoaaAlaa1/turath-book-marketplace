@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
@@ -7,6 +9,7 @@ namespace TurathApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class OrdersController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -16,9 +19,19 @@ namespace TurathApi.Controllers
             _context = context;
         }
 
-        [HttpGet("{customerId}")]
-        public async Task<ActionResult<IEnumerable<Order>>> GetOrders(string customerId)
+        /// <summary>
+        /// GET /api/orders
+        /// Returns all orders for the currently authenticated customer.
+        /// </summary>
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Order>>> GetMyOrders()
         {
+            var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(customerId))
+            {
+                return Unauthorized("„⁄—¯› «·„” Œœ„ €Ì— ’«·Õ.");
+            }
+
             var orders = await _context.Orders
                 .Include(o => o.OrderItems)
                 .AsNoTracking()
@@ -29,20 +42,32 @@ namespace TurathApi.Controllers
             return Ok(orders);
         }
 
+        /// <summary>
+        /// GET /api/orders/details/{id}
+        /// Returns order details only if it belongs to the authenticated customer.
+        /// </summary>
         [HttpGet("details/{id:guid}")]
         public async Task<ActionResult<Order>> GetOrder(Guid id)
         {
+            var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(customerId))
+            {
+                return Unauthorized("„⁄—¯› «·„” Œœ„ €Ì— ’«·Õ.");
+            }
+
             var order = await _context.Orders
                 .Include(o => o.OrderItems)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(o => o.Id == id);
+                .FirstOrDefaultAsync(o => o.Id == id && o.CustomerId == customerId);
 
             if (order == null)
             {
-                return NotFound(new { message = "Order not found" });
+                return NotFound(new { message = "«·ÿ·» €Ì— „ÊÃÊœ √Ê ·«  „·ﬂ ’·«ÕÌ… «·Ê’Ê· ≈·ÌÂ." });
             }
 
             return Ok(order);
         }
+  
     }
+
 }
