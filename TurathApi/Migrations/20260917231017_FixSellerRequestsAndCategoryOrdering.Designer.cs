@@ -12,8 +12,8 @@ using TurathApi.Data;
 namespace TurathApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260914144323_AddSellerRequestsTable")]
-    partial class AddSellerRequestsTable
+    [Migration("20260917231017_FixSellerRequestsAndCategoryOrdering")]
+    partial class FixSellerRequestsAndCategoryOrdering
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -286,8 +286,9 @@ namespace TurathApi.Migrations
                         .HasColumnType("int")
                         .HasColumnName("quantity");
 
-                    b.Property<int>("SellerId")
-                        .HasColumnType("int")
+                    b.Property<string>("SellerId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)")
                         .HasColumnName("seller_id");
 
                     b.Property<string>("Title")
@@ -299,84 +300,9 @@ namespace TurathApi.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.ToTable("Books", (string)null);
+                    b.HasIndex("SellerId");
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            AgeRating = "All Ages",
-                            ApprovalStatus = "Approved",
-                            Author = "Paulo Coelho",
-                            CategoryId = 1,
-                            Condition = "LikeNew",
-                            Description = "A shepherd boy's journey to find treasure and discover his personal legend.",
-                            ImageUrl = "/images/books/the-alchemist.jpg",
-                            Price = 85.00m,
-                            Quantity = 4,
-                            SellerId = 1,
-                            Title = "The Alchemist"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            AgeRating = "All Ages",
-                            ApprovalStatus = "Approved",
-                            Author = "Robert C. Martin",
-                            CategoryId = 2,
-                            Condition = "Good",
-                            Description = "A handbook of agile software craftsmanship, covering principles and practices for writing readable, maintainable code.",
-                            ImageUrl = "/images/books/clean-code.jpg",
-                            Price = 220.00m,
-                            Quantity = 2,
-                            SellerId = 2,
-                            Title = "Clean Code"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            AgeRating = "8+",
-                            ApprovalStatus = "Approved",
-                            Author = "E. B. White",
-                            CategoryId = 3,
-                            Condition = "Acceptable",
-                            Description = "A classic story of friendship between a pig named Wilbur and a spider named Charlotte.",
-                            ImageUrl = "/images/books/charlottes-web.jpg",
-                            Price = 60.00m,
-                            Quantity = 6,
-                            SellerId = 3,
-                            Title = "Charlotte's Web"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            AgeRating = "16+",
-                            ApprovalStatus = "Approved",
-                            Author = "Yuval Noah Harari",
-                            CategoryId = 4,
-                            Condition = "Good",
-                            Description = "An exploration of how Homo sapiens came to dominate the world, from the cognitive revolution to today.",
-                            ImageUrl = "/images/books/sapiens.jpg",
-                            Price = 150.00m,
-                            Quantity = 3,
-                            SellerId = 1,
-                            Title = "Sapiens: A Brief History of Humankind"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            AgeRating = "All Ages",
-                            ApprovalStatus = "Pending",
-                            Author = "Unknown",
-                            CategoryId = 1,
-                            Condition = "Acceptable",
-                            Description = "Awaiting copyright verification before it can be listed publicly.",
-                            ImageUrl = "/images/books/placeholder.jpg",
-                            Price = 40.00m,
-                            Quantity = 1,
-                            SellerId = 2,
-                            Title = "Untitled Manuscript Draft"
-                        });
+                    b.ToTable("Books", (string)null);
                 });
 
             modelBuilder.Entity("TurathApi.Models.Cart", b =>
@@ -403,8 +329,8 @@ namespace TurathApi.Migrations
                     b.Property<Guid>("CartId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("ProductId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
@@ -461,6 +387,34 @@ namespace TurathApi.Migrations
                         });
                 });
 
+            modelBuilder.Entity("TurathApi.Models.CategoryRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CategoryName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SellerId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SellerId");
+
+                    b.ToTable("CategoryRequests");
+                });
+
             modelBuilder.Entity("TurathApi.Models.Comment", b =>
                 {
                     b.Property<int>("Id")
@@ -477,8 +431,9 @@ namespace TurathApi.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -524,8 +479,8 @@ namespace TurathApi.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<Guid>("ProductId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
@@ -560,8 +515,10 @@ namespace TurathApi.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("created_at");
 
-                    b.Property<int>("CustomerId")
-                        .HasColumnType("int")
+                    b.Property<string>("CustomerId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)")
                         .HasColumnName("customer_id");
 
                     b.Property<float>("Rating")
@@ -570,7 +527,122 @@ namespace TurathApi.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BookId");
+
+                    b.HasIndex("CustomerId");
+
                     b.ToTable("Reviews", (string)null);
+                });
+
+            modelBuilder.Entity("TurathApi.Models.SellerRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("processed_at");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("requested_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("SellerRequests", (string)null);
+                });
+
+            modelBuilder.Entity("TurathApi.Models.SupportTicket", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AdminResponse")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CustomerId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("SupportTickets");
+                });
+
+            modelBuilder.Entity("TurathApi.Models.WishlistItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("added_at");
+
+                    b.Property<int>("BookId")
+                        .HasColumnType("int")
+                        .HasColumnName("book_id");
+
+                    b.Property<string>("CustomerId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)")
+                        .HasColumnName("customer_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookId");
+
+                    b.HasIndex("CustomerId", "BookId")
+                        .IsUnique();
+
+                    b.ToTable("WishlistItems", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -632,7 +704,15 @@ namespace TurathApi.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("TurathApi.Models.ApplicationUser", "Seller")
+                        .WithMany()
+                        .HasForeignKey("SellerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Category");
+
+                    b.Navigation("Seller");
                 });
 
             modelBuilder.Entity("TurathApi.Models.CartItem", b =>
@@ -646,6 +726,17 @@ namespace TurathApi.Migrations
                     b.Navigation("Cart");
                 });
 
+            modelBuilder.Entity("TurathApi.Models.CategoryRequest", b =>
+                {
+                    b.HasOne("TurathApi.Models.ApplicationUser", "Seller")
+                        .WithMany()
+                        .HasForeignKey("SellerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Seller");
+                });
+
             modelBuilder.Entity("TurathApi.Models.OrderItem", b =>
                 {
                     b.HasOne("TurathApi.Models.Order", "Order")
@@ -655,6 +746,75 @@ namespace TurathApi.Migrations
                         .IsRequired();
 
                     b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("TurathApi.Models.Review", b =>
+                {
+                    b.HasOne("TurathApi.Models.Book", "Book")
+                        .WithMany("Reviews")
+                        .HasForeignKey("BookId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("TurathApi.Models.ApplicationUser", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Book");
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("TurathApi.Models.SellerRequest", b =>
+                {
+                    b.HasOne("TurathApi.Models.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TurathApi.Models.SupportTicket", b =>
+                {
+                    b.HasOne("TurathApi.Models.ApplicationUser", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TurathApi.Models.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("TurathApi.Models.WishlistItem", b =>
+                {
+                    b.HasOne("TurathApi.Models.Book", "Book")
+                        .WithMany()
+                        .HasForeignKey("BookId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TurathApi.Models.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Book");
+                });
+
+            modelBuilder.Entity("TurathApi.Models.Book", b =>
+                {
+                    b.Navigation("Reviews");
                 });
 
             modelBuilder.Entity("TurathApi.Models.Cart", b =>

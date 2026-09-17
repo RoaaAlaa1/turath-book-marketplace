@@ -5,7 +5,7 @@
 namespace TurathApi.Migrations
 {
     /// <inheritdoc />
-    public partial class AddSellerRequestsTable : Migration
+    public partial class FixSellerRequestsAndCategoryOrdering : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
