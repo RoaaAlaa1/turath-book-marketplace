@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +11,7 @@ namespace TurathApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin")] // Accessible only for Admin
+    [Authorize(Roles = "Admin")] // Admin only
     public class AdminController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> _userManager;
@@ -48,7 +48,7 @@ namespace TurathApi.Controllers
 
         // ==================== USER MANAGEMENT ====================
 
-        // 1. Get list of all users
+        // 1. List all users
         [HttpGet("users")]
         public async Task<IActionResult> GetAllUsers()
         {
@@ -66,14 +66,14 @@ namespace TurathApi.Controllers
             return Ok(users);
         }
 
-        // 2. Toggle user account status (Suspend / Activate)
+        // 2. Suspend / activate a user account (Toggle Suspend/Activate)
         [HttpPut("users/{userId}/toggle-status")]
         public async Task<IActionResult> ToggleUserStatus(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
-                return NotFound(new { message = "User not found." });
+                return NotFound("User not found.");
             }
 
             await _userManager.SetLockoutEnabledAsync(user, true);
@@ -83,18 +83,18 @@ namespace TurathApi.Controllers
             if (isCurrentlySuspended)
             {
                 await _userManager.SetLockoutEndDateAsync(user, null);
-                return Ok(new { message = $"User account '{user.UserName}' has been activated successfully." });
+                return Ok(new { message = $"User {user.UserName} has been activated successfully." });
             }
             else
             {
                 await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.UtcNow.AddYears(100));
-                return Ok(new { message = $"User account '{user.UserName}' has been suspended successfully." });
+                return Ok(new { message = $"User {user.UserName} has been suspended successfully." });
             }
         }
 
         // ==================== CATEGORY REQUESTS MANAGEMENT ====================
 
-        // 3. Get all pending category requests
+        // 3. List all pending category requests
         [HttpGet("category-requests")]
         public async Task<IActionResult> GetPendingCategoryRequests()
         {
@@ -113,14 +113,14 @@ namespace TurathApi.Controllers
             return Ok(requests);
         }
 
-        // 4. Approve category request and automatically add it to active categories
+        // 4. Approve a category request and automatically add it to the active categories list
         [HttpPost("category-requests/{id}/approve")]
         public async Task<IActionResult> ApproveCategoryRequest(Guid id)
         {
             var request = await _context.CategoryRequests.FindAsync(id);
             if (request == null)
             {
-                return NotFound(new { message = "Category request not found." });
+                return NotFound("Request not found.");
             }
 
             request.Status = "Approved";
@@ -133,17 +133,17 @@ namespace TurathApi.Controllers
             _context.Categories.Add(newCategory);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = $"Category request '{request.CategoryName}' has been approved and added successfully." });
+            return Ok(new { message = $"Category '{request.CategoryName}' has been approved and added successfully." });
         }
 
-        // 5. Reject category request
+        // 5. Reject a category request
         [HttpPost("category-requests/{id}/reject")]
         public async Task<IActionResult> RejectCategoryRequest(Guid id)
         {
             var request = await _context.CategoryRequests.FindAsync(id);
             if (request == null)
             {
-                return NotFound(new { message = "Category request not found." });
+                return NotFound("Request not found.");
             }
 
             request.Status = "Rejected";
@@ -154,7 +154,7 @@ namespace TurathApi.Controllers
 
         // ==================== BOOK APPROVAL QUEUE ====================
 
-        // 6. Get pending books awaiting admin approval
+        // 6. List books pending admin approval
         [HttpGet("books/pending")]
         public async Task<IActionResult> GetPendingBooks()
         {
@@ -174,7 +174,7 @@ namespace TurathApi.Controllers
             return Ok(pendingBooks);
         }
 
-        // 7. Get all books for admin view
+        // 7. List all books for the admin
         [HttpGet("books")]
         public async Task<IActionResult> GetAllBooks()
         {
@@ -207,6 +207,11 @@ namespace TurathApi.Controllers
                 return NotFound(new { message = "Book not found." });
             }
 
+            var wishlistItems = await _context.WishlistItems
+                .Where(w => w.BookId == id)
+                .ToListAsync();
+            _context.WishlistItems.RemoveRange(wishlistItems);
+
             _context.Reviews.RemoveRange(book.Reviews);
             _context.Books.Remove(book);
 
@@ -225,13 +230,13 @@ namespace TurathApi.Controllers
             var book = await _context.Books.FindAsync(id);
             if (book == null)
             {
-                return NotFound(new { message = "Book not found." });
+                return NotFound("Book not found.");
             }
 
             book.ApprovalStatus = ApprovalStatus.Approved;
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = $"Book '{book.Title}' has been approved for publication successfully." });
+            return Ok(new { message = $"Book '{book.Title}' has been approved successfully." });
         }
 
         // 10. Reject publication of a book
@@ -241,13 +246,13 @@ namespace TurathApi.Controllers
             var book = await _context.Books.FindAsync(id);
             if (book == null)
             {
-                return NotFound(new { message = "Book not found." });
+                return NotFound("Book not found.");
             }
 
             book.ApprovalStatus = ApprovalStatus.Rejected;
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = $"Book '{book.Title}' publication request has been rejected." });
+            return Ok(new { message = $"Book '{book.Title}' has been rejected." });
         }
     }
 }
