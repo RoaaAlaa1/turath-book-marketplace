@@ -4,9 +4,9 @@ namespace TurathApi.Models
 {
     public class CartItem
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
+        public int Id { get; set; } // تم التعديل إلى int
 
-        public Guid CartId { get; set; }
+        public int CartId { get; set; } // تم التعديل إلى int
 
         [JsonIgnore]
         public Cart Cart { get; set; } = null!;

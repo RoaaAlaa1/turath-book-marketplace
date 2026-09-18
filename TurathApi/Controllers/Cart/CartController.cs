@@ -59,6 +59,13 @@ namespace TurathApi.Controllers
                 return Unauthorized("Invalid user identifier.");
             }
 
+            // التأكد إن المنتج موجود أساساً في جدول Books
+            var productExists = await _context.Books.AnyAsync(b => b.Id == dto.ProductId);
+            if (!productExists)
+            {
+                return NotFound(new { message = "Product not found." });
+            }
+
             var cart = await _context.Carts
                 .Include(c => c.CartItems)
                 .FirstOrDefaultAsync(c => c.CustomerId == customerId);
@@ -131,7 +138,6 @@ namespace TurathApi.Controllers
             return Ok(new { message = "Cart updated successfully." });
         }
 
-
         /// Removes an item from the authenticated user's cart.
         [HttpDelete("remove-item")]
         public async Task<IActionResult> RemoveCartItem([FromBody] RemoveCartItemDto dto)
@@ -163,10 +169,9 @@ namespace TurathApi.Controllers
             return Ok(new { message = "Product removed from cart successfully." });
         }
 
-
         /// Creates an order from the current cart items for the authenticated user.
         [HttpPost("checkout")]
-        public async Task<IActionResult> Checkout([FromBody] CheckoutDto dto)        
+        public async Task<IActionResult> Checkout([FromBody] CheckoutDto dto)
         {
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(customerId))
@@ -183,25 +188,35 @@ namespace TurathApi.Controllers
                 return BadRequest(new { message = "The cart is empty. Cannot complete the checkout process." });
             }
 
-            decimal totalAmount = cart.CartItems.Sum(item => item.Quantity * 10);
+            // جلب أسعار المنتجات الحقيقية من قاعدة البيانات لحساب الإجمالي بدقة
+            var productIds = cart.CartItems.Select(ci => ci.ProductId).ToList();
+            var products = await _context.Books.Where(b => productIds.Contains(b.Id)).ToDictionaryAsync(b => b.Id, b => b.Price); // افترضنا أن حقل السعر اسمه Price، لو اسم تاني عدله
+
+            decimal totalAmount = 0;
+            var orderItemsList = new List<OrderItem>();
+
+            foreach (var cartItem in cart.CartItems)
+            {
+                // لو جدول الكتب عندك اسمه مختلف أو الحقل مش Price تقدر تظبطه، وهنا بنجيب السعر الحقيقي
+                decimal itemPrice = products.TryGetValue(cartItem.ProductId, out var price) ? price : 0;
+                totalAmount += cartItem.Quantity * itemPrice;
+
+                orderItemsList.Add(new OrderItem
+                {
+                    ProductId = cartItem.ProductId,
+                    Quantity = cartItem.Quantity,
+                    Price = itemPrice
+                });
+            }
 
             var order = new Order
             {
                 CustomerId = customerId,
                 Total = totalAmount,
                 Status = "Pending",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                OrderItems = orderItemsList
             };
-
-            foreach (var cartItem in cart.CartItems)
-            {
-                order.OrderItems.Add(new OrderItem
-                {
-                    ProductId = cartItem.ProductId,
-                    Quantity = cartItem.Quantity,
-                    Price = 10
-                });
-            }
 
             _context.Orders.Add(order);
             _context.CartItems.RemoveRange(cart.CartItems);
