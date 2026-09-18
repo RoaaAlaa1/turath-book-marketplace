@@ -23,36 +23,40 @@ namespace TurathApi.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Order>>> GetMyOrders()
         {
-            var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(customerId))
+            var customerIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(customerIdStr))
             {
                 return Unauthorized(new { message = "Invalid user identifier." });
             }
 
+            // Handles both Guid and string user IDs safely
             var orders = await _context.Orders
                 .Include(o => o.OrderItems)
                 .AsNoTracking()
-                .Where(o => o.CustomerId == customerId)
+                .Where(o => o.CustomerId.ToString() == customerIdStr)
                 .OrderByDescending(o => o.CreatedAt)
                 .ToListAsync();
 
             return Ok(orders);
         }
 
-        /// Returns order details only if it belongs to the authenticated customer.
+        // Returns order details only if it belongs to the authenticated customer.
         [HttpGet("details/{id:int}")]
         public async Task<ActionResult<Order>> GetOrder(int id)
         {
-            var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(customerId))
+            var customerIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(customerIdStr))
             {
                 return Unauthorized(new { message = "Invalid user identifier." });
             }
 
-            var order = await _context.Orders
+            var ordersList = await _context.Orders
                 .Include(o => o.OrderItems)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(o => o.Id == id && o.CustomerId == customerId);
+                .Where(o => o.Id == id)
+                .ToListAsync();
+
+            var order = ordersList.FirstOrDefault(o => o.CustomerId.ToString() == customerIdStr);
 
             if (order == null)
             {
