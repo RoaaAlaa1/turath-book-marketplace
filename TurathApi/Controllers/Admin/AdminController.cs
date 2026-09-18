@@ -3,11 +3,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
-using TurathApi.DTOs;
+using TurathApi.DTOs.Admin;
 using TurathApi.Models;
 using TurathApi.Models.Enums;
 
-namespace TurathApi.Controllers
+namespace TurathApi.Controllers.Admin
 {
     [ApiController]
     [Route("api/[controller]")]

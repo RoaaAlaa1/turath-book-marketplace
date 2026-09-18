@@ -7,7 +7,7 @@ using TurathApi.Data;
 using TurathApi.DTOs.SellerRequest;
 using TurathApi.Models;
 
-namespace TurathApi.Controllers
+namespace TurathApi.Controllers.Seller
 {
     [Route("api/[controller]")]
     [ApiController]

@@ -3,10 +3,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
-using TurathApi.DTOs;
+using TurathApi.DTOs.Wishlist;
 using TurathApi.Models;
 
-namespace TurathApi.Controllers
+namespace TurathApi.Controllers.Wishlist
 {
     [ApiController]
     [Route("api/[controller]")]

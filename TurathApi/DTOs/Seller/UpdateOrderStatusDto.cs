@@ -1,6 +1,6 @@
 ﻿using TurathApi.Models.Enums;
 
-namespace TurathApi.DTOs
+namespace TurathApi.DTOs.Seller
 {
     public class UpdateOrderStatusDto
     {

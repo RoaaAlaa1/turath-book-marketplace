@@ -1,4 +1,4 @@
-﻿namespace TurathApi.DTOs
+﻿namespace TurathApi.DTOs.Seller
 {
     public class SellerOrderDto
     {

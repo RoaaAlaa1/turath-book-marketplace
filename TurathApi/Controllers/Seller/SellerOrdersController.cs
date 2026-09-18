@@ -7,9 +7,9 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using TurathApi.Data;
-using TurathApi.DTOs;
+using TurathApi.DTOs.Seller;
 
-namespace TurathApi.Controllers
+namespace TurathApi.Controllers.Seller
 {
     [ApiController]
     [Route("api/[controller]")]

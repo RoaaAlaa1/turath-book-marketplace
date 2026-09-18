@@ -6,7 +6,7 @@ using TurathApi.DTOs.Reviews;
 using TurathApi.Models;
 using TurathApi.Services.Interfaces;
 
-namespace TurathApi.Controllers
+namespace TurathApi.Controllers.Reviews
 {
     [ApiController]
     [Route("api/[controller]")]

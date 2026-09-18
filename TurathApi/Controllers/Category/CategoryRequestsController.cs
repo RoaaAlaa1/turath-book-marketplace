@@ -5,7 +5,7 @@ using TurathApi.Data;
 using TurathApi.Models;
 using TurathApi.DTOs.Categories;
 
-namespace TurathApi.Controllers
+namespace TurathApi.Controllers.Category
 {
     [ApiController]
     [Route("api/[controller]")]

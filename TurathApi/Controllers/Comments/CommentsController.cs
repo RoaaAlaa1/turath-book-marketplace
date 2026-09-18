@@ -4,7 +4,7 @@ using TurathApi.Models;
 using Microsoft.AspNetCore.Mvc;
 using TurathApi.DTOs.Comments;
 
-namespace TurathApi.Controllers
+namespace TurathApi.Controllers.Comments
 {
     [ApiController]
     [Route("api/[controller]")]

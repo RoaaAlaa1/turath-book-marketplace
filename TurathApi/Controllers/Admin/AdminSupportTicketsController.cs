@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
 using TurathApi.DTOs.Tickets;
 
-namespace TurathApi.Controllers
+namespace TurathApi.Controllers.Admin
 {
     [ApiController]
     [Route("api/admin/support-tickets")]

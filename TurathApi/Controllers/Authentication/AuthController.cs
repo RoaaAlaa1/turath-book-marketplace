@@ -2,7 +2,7 @@
 using TurathApi.DTOs.Auth;
 using TurathApi.Services.Interfaces;
 
-namespace TurathApi.Controllers
+namespace TurathApi.Controllers.Authentication
 {
     [Route("api/[controller]")]
     [ApiController]
