@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using TurathApi.Services;
 
-namespace TurathApi.Controllers
+namespace TurathApi.Controllers.Chatbot
 {
     [ApiController]
     [Route("api/[controller]")]

@@ -6,7 +6,7 @@ using TurathApi.Data;
 using TurathApi.DTOs;
 using TurathApi.Models;
 
-namespace TurathApi.Controllers.Cart
+namespace TurathApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]

@@ -7,7 +7,7 @@ using TurathApi.DTOs.Books;
 using TurathApi.Models;
 using TurathApi.Models.Enums;
 
-namespace TurathApi.Controllers.Book
+namespace TurathApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]

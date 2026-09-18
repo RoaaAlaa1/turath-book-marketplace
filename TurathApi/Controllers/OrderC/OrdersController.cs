@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
 using TurathApi.Models;
 
-namespace TurathApi.Controllers.Order
+namespace TurathApi.Controllers.Orders
 {
     [ApiController]
     [Route("api/[controller]")]

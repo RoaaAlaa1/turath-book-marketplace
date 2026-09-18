@@ -6,7 +6,7 @@ using TurathApi.Data;
 using TurathApi.DTOs.Tickets;
 using TurathApi.Models;
 
-namespace TurathApi.Controllers.SupportTicket
+namespace TurathApi.Controllers
 {
     [ApiController]
     [Route("api/support-tickets")]
