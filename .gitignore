@@ -59,4 +59,4 @@ nunit-*.xml
 .vs/
 *.user
 .vscode/
-appsettings.json
+appsettings.Development.json
