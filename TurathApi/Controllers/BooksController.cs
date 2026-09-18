@@ -28,9 +28,9 @@ namespace TurathApi.Controllers
         /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<BookResponseDto>>> GetAll(
-            [FromQuery] string? search,
-            [FromQuery] int? categoryId,
-            [FromQuery] string? sort)
+    [FromQuery] string? search,
+    [FromQuery] string? category,
+    [FromQuery] string? sort)
         {
             var query = _context.Books
                 .Include(b => b.Category)
@@ -44,9 +44,10 @@ namespace TurathApi.Controllers
                     EF.Functions.Like(b.Author, $"%{term}%"));
             }
 
-            if (categoryId.HasValue)
+            if (!string.IsNullOrWhiteSpace(category))
             {
-                query = query.Where(b => b.CategoryId == categoryId.Value);
+                var categoryTerm = category.Trim();
+                query = query.Where(b => b.Category != null && b.Category.Name == categoryTerm);
             }
 
             query = sort?.Trim().ToLowerInvariant() switch
