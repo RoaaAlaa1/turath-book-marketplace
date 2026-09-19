@@ -15,7 +15,7 @@ namespace TurathApi.Controllers
     {
         private readonly AppDbContext _context;
 
-        public CartController(AppDbContext context)
+    public CartController(AppDbContext context)
         {
             _context = context;
         }
@@ -58,7 +58,6 @@ namespace TurathApi.Controllers
                 return Unauthorized("Invalid user identifier.");
             }
 
-<<<<<<< HEAD
             if (dto.ProductId <= 0 || dto.Quantity <= 0)
             {
                 return BadRequest(new { message = "Invalid product or quantity." });
@@ -68,13 +67,6 @@ namespace TurathApi.Controllers
             if (book == null)
             {
                 return NotFound(new { message = "Book not found or not approved." });
-=======
-            // التأكد إن المنتج موجود أساساً في جدول Books
-            var productExists = await _context.Books.AnyAsync(b => b.Id == dto.ProductId);
-            if (!productExists)
-            {
-                return NotFound(new { message = "Product not found." });
->>>>>>> cfa0f7b9e26070812dc28f615256b8ccbce6e37f
             }
 
             var cart = await _context.Carts
@@ -220,7 +212,6 @@ namespace TurathApi.Controllers
                 return BadRequest(new { message = "The cart is empty. Cannot complete the checkout process." });
             }
 
-<<<<<<< HEAD
             var orderItems = new List<OrderItem>();
             decimal totalAmount = 0m;
 
@@ -248,27 +239,6 @@ namespace TurathApi.Controllers
                 });
 
                 book.Quantity -= cartItem.Quantity;
-=======
-            // جلب أسعار المنتجات الحقيقية من قاعدة البيانات لحساب الإجمالي بدقة
-            var productIds = cart.CartItems.Select(ci => ci.ProductId).ToList();
-            var products = await _context.Books.Where(b => productIds.Contains(b.Id)).ToDictionaryAsync(b => b.Id, b => b.Price); // افترضنا أن حقل السعر اسمه Price، لو اسم تاني عدله
-
-            decimal totalAmount = 0;
-            var orderItemsList = new List<OrderItem>();
-
-            foreach (var cartItem in cart.CartItems)
-            {
-                // لو جدول الكتب عندك اسمه مختلف أو الحقل مش Price تقدر تظبطه، وهنا بنجيب السعر الحقيقي
-                decimal itemPrice = products.TryGetValue(cartItem.ProductId, out var price) ? price : 0;
-                totalAmount += cartItem.Quantity * itemPrice;
-
-                orderItemsList.Add(new OrderItem
-                {
-                    ProductId = cartItem.ProductId,
-                    Quantity = cartItem.Quantity,
-                    Price = itemPrice
-                });
->>>>>>> cfa0f7b9e26070812dc28f615256b8ccbce6e37f
             }
 
             var order = new Order
@@ -277,11 +247,7 @@ namespace TurathApi.Controllers
                 Total = totalAmount,
                 Status = "Pending",
                 CreatedAt = DateTime.UtcNow,
-<<<<<<< HEAD
                 OrderItems = orderItems
-=======
-                OrderItems = orderItemsList
->>>>>>> cfa0f7b9e26070812dc28f615256b8ccbce6e37f
             };
 
             _context.Orders.Add(order);
@@ -292,4 +258,5 @@ namespace TurathApi.Controllers
             return Ok(new { message = "Order placed successfully.", orderId = order.Id, total = totalAmount });
         }
     }
+
 }
