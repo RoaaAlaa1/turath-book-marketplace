@@ -15,7 +15,7 @@ namespace TurathApi.Controllers
     {
         private readonly AppDbContext _context;
 
-        public CartController(AppDbContext context)
+    public CartController(AppDbContext context)
         {
             _context = context;
         }
@@ -258,4 +258,8 @@ namespace TurathApi.Controllers
             return Ok(new { message = "Order placed successfully.", orderId = order.Id, total = totalAmount });
         }
     }
+<<<<<<< HEAD
+=======
+
+>>>>>>> f5af0b43f98c0bf0b7d0e88c5c6df9a1e86bbf2f
 }
