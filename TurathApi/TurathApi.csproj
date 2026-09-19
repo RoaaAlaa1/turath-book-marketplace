@@ -26,4 +26,14 @@
     <Folder Include="src\" />
   </ItemGroup>
 
+  <!-- Exclude legacy migration files that still contain unresolved merge-conflict markers. -->
+  <ItemGroup>
+    <Compile Remove="Migrations\20260918174448_TempSellerRequests.cs" />
+    <Compile Remove="Migrations\20260918174448_TempSellerRequests.Designer.cs" />
+    <Compile Remove="Migrations\20260918193837_InitialCreate.cs" />
+    <Compile Remove="Migrations\20260918193837_InitialCreate.Designer.cs" />
+    <Compile Remove="Migrations\20260918215939_InitialCleanCreate.cs" />
+    <Compile Remove="Migrations\20260918215939_InitialCleanCreate.Designer.cs" />
+  </ItemGroup>
+
 </Project>

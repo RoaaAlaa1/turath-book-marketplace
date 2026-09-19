@@ -16,6 +16,7 @@ type Line = { item: CartItem; book: Book };
 
 export function CartSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { cart, bookById, activeUser, isAuthenticated, setCartQty, removeFromCart, placeOrder } = useTurath();
+  const customer = activeUser ?? { name: "Guest", email: "", address: "" };
   const [step, setStep] = useState<Step>(0);
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
@@ -29,6 +30,7 @@ export function CartSheet({ open, onOpenChange }: { open: boolean; onOpenChange:
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [confirmedTotal, setConfirmedTotal] = useState<number | null>(null);
   const [emailOpen, setEmailOpen] = useState(false);
 
   const lines: Line[] = cart.flatMap((item) => {
@@ -46,35 +48,40 @@ export function CartSheet({ open, onOpenChange }: { open: boolean; onOpenChange:
   const cardValid = cardDigits.length === 16 && cardholder.trim().length >= 2 && /^\d{2}\/\d{2}$/.test(expiry) && cvv.length === 3;
 
   useEffect(() => {
-    if (!open || address || !activeUser.address) return;
-    const [savedAddress, savedCity] = activeUser.address.split(",");
+    if (!open || address || !customer.address) return;
+    const [savedAddress, savedCity] = customer.address.split(",");
     setAddress(savedAddress?.trim() ?? "");
     setCity(savedCity?.trim() ?? "");
-  }, [open, address, activeUser.address]);
+  }, [open, address, customer.address]);
 
   useEffect(() => {
-    if (open && isAuthenticated && !confirmEmail) setConfirmEmail(activeUser.email ?? "");
-  }, [open, isAuthenticated, activeUser.email, confirmEmail]);
+    if (open && isAuthenticated && !confirmEmail) setConfirmEmail(customer.email);
+  }, [open, isAuthenticated, customer.email, confirmEmail]);
 
   const close = (nextOpen: boolean) => {
     onOpenChange(nextOpen);
-    if (!nextOpen) window.setTimeout(() => { setStep(0); setOrderId(null); setOtp(""); setEmailOpen(false); setConfirmEmail(""); }, 250);
+    if (!nextOpen) window.setTimeout(() => { setStep(0); setOrderId(null); setConfirmedTotal(null); setOtp(""); setEmailOpen(false); setConfirmEmail(""); }, 250);
   };
-  const confirm = () => {
-    const created = placeOrder(`${address.trim()}, ${city.trim()}`);
+  const confirm = async () => {
+    const checkoutTotal = total;
+    const created = await placeOrder(`${address.trim()}, ${city.trim()}`);
     if (!created) return;
     setOrderId(created);
+    setConfirmedTotal(checkoutTotal);
     setStep(4);
-    toast.success(`Order ${created} placed`, { description: `Confirmation email sent to ${confirmEmail.trim() || activeUser.email}` });
+    toast.success(`Order ${created} placed`, { description: `Confirmation email sent to ${confirmEmail.trim() || customer.email}` });
   };
   const pay = () => {
-    if (payment === "cash") return confirm();
+    if (payment === "cash") {
+      void confirm();
+      return;
+    }
     setLoading(true);
     window.setTimeout(() => { setLoading(false); setStep(3); }, 900);
   };
   const verify = () => {
     if (otp !== "123456") return toast.error("Verification failed", { description: "Use 123456 for this demo." });
-    confirm();
+    void confirm();
   };
 
   return (
@@ -91,13 +98,13 @@ export function CartSheet({ open, onOpenChange }: { open: boolean; onOpenChange:
               <CartItems lines={lines} setCartQty={setCartQty} removeFromCart={removeFromCart} />
             </>
           )}
-          {step === 1 && <Shipping address={address} setAddress={setAddress} city={city} setCity={setCity} delivery={delivery} setDelivery={setDelivery} userName={activeUser.name} confirmEmail={confirmEmail} setConfirmEmail={setConfirmEmail} emailValid={emailValid} />}
+          {step === 1 && <Shipping address={address} setAddress={setAddress} city={city} setCity={setCity} delivery={delivery} setDelivery={setDelivery} userName={customer.name} confirmEmail={confirmEmail} setConfirmEmail={setConfirmEmail} emailValid={emailValid} />}
           {step === 2 && <Payment payment={payment} setPayment={setPayment} cardholder={cardholder} setCardholder={setCardholder} card={card} setCard={setCard} expiry={expiry} setExpiry={setExpiry} cvv={cvv} setCvv={setCvv} />}
           {step === 3 && <SecureOtp otp={otp} setOtp={setOtp} onVerify={verify} />}
-          {step === 4 && <Confirmation orderId={orderId} email={activeUser.email} total={total} address={`${address}, ${city}`} onEmail={() => setEmailOpen(true)} />}
+          {step === 4 && <Confirmation orderId={orderId} email={customer.email} total={confirmedTotal ?? total} address={`${address}, ${city}`} onEmail={() => setEmailOpen(true)} />}
         </div>
         {step < 4 && lines.length > 0 && <CheckoutFooter step={step} total={total} subtotal={subtotal} shipping={shipping} tax={tax} shippingValid={shippingValid} cardValid={cardValid} loading={loading} payment={payment} isAuthenticated={isAuthenticated} onBack={() => setStep((step - 1) as Step)} onNext={() => setStep((step + 1) as Step)} onPay={pay} onVerify={verify} />}
-        {emailOpen && <EmailPreview orderId={orderId} total={total} address={`${address}, ${city}`} onClose={() => setEmailOpen(false)} />}
+        {emailOpen && <EmailPreview orderId={orderId} total={confirmedTotal ?? total} address={`${address}, ${city}`} onClose={() => setEmailOpen(false)} />}
       </SheetContent>
     </Sheet>
   );

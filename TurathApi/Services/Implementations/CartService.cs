@@ -106,28 +106,51 @@ namespace TurathApi.Services.Implementations
                 throw new InvalidOperationException("Cart is empty or not found.");
             }
 
+            // Fetch the real books referenced by this cart so we use their real prices,
+            // not a hardcoded placeholder.
+            var productIds = cart.CartItems.Select(ci => ci.ProductId).ToList();
+            var books = await _context.Books
+                .Where(b => productIds.Contains(b.Id))
+                .ToDictionaryAsync(b => b.Id, b => b);
+
             // Using transaction for data consistency between Cart and Orders
             using var transaction = await _context.Database.BeginTransactionAsync();
-
-            decimal totalAmount = cart.CartItems.Sum(item => item.Quantity * 10m);
 
             var order = new Order
             {
                 CustomerId = customerId,
-                Total = totalAmount,
                 Status = "Pending",
                 CreatedAt = DateTime.UtcNow
             };
 
+            decimal totalAmount = 0m;
+
             foreach (var item in cart.CartItems)
             {
+                if (!books.TryGetValue(item.ProductId, out var book))
+                {
+                    // A book referenced in the cart no longer exists / was removed.
+                    // Skip it rather than charging a fabricated price for it.
+                    continue;
+                }
+
+                var lineTotal = book.Price * item.Quantity;
+                totalAmount += lineTotal;
+
                 order.OrderItems.Add(new OrderItem
                 {
                     ProductId = item.ProductId,
                     Quantity = item.Quantity,
-                    Price = 10m
+                    Price = book.Price // real price at time of purchase
                 });
             }
+
+            if (!order.OrderItems.Any())
+            {
+                throw new InvalidOperationException("None of the items in the cart correspond to valid books.");
+            }
+
+            order.Total = totalAmount;
 
             _context.Orders.Add(order);
             _context.CartItems.RemoveRange(cart.CartItems);

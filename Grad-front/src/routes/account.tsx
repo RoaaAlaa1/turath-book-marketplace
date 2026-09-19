@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { BranchDivider } from "@/components/turath/Ornaments";
 import { useTurath } from "@/lib/turath/store";
+import { apiFetch } from "@/lib/turath/api";
 
 export const Route = createFileRoute("/account")({
   head: () => ({
@@ -35,19 +36,9 @@ function Account() {
     }
 
     try {
-      const response = await fetch("/api/SellerRequests/apply", {
+      const data = await apiFetch<{ message?: string }>("/api/SellerRequests/apply", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
       });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data?.message || "Unable to submit seller request.");
-      }
 
       updateProfile(activeUser.id, { sellerState: "pending" });
       toast.success(data?.message || "Seller request submitted successfully.");

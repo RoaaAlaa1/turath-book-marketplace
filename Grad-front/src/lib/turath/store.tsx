@@ -47,7 +47,7 @@ const defaults: Persisted = {
 
 interface StoreValue extends Persisted {
   hydrated: boolean;
-  activeUser: AppUser;
+  activeUser: AppUser | null;
   isAuthenticated: boolean;
   setRole: (r: Role) => void;
   signOut: () => void;
@@ -63,7 +63,7 @@ interface StoreValue extends Persisted {
   removeFromCart: (bookId: string) => void;
   clearCart: () => void;
   toggleWishlist: (bookId: string) => void;
-  placeOrder: (address: string) => string | null;
+  placeOrder: (address: string) => Promise<string | null>;
   cancelOrder: (orderId: string) => void;
   setOrderStatus: (orderId: string, status: OrderStatus) => void;
   addReview: (bookId: string, review: Omit<Review, "id" | "date">) => void;
@@ -90,13 +90,6 @@ export const roleLabels: Record<Role, { en: string; ar: string }> = {
   admin: { en: "Administrator", ar: "مشرف" },
 };
 
-const roleUserId: Record<Role, string> = {
-  customer: CUSTOMER_ID,
-  seller: SELLER_ID,
-  pendingSeller: PENDING_SELLER_ID,
-  admin: ADMIN_ID,
-};
-
 // Known fallback map for seeded backend sellers
 const SELLER_FALLBACK_MAP: Record<string, string> = {
   "e89be4a0-a929-48f1-aab9-a611b58f6be1": "Turath Foundation",
@@ -106,6 +99,25 @@ const SELLER_FALLBACK_MAP: Record<string, string> = {
   "e89be4a0-a929-48f1-aab9-a611b58f6be5": "Mona El-Khatib",
   "e89be4a0-a929-48f1-aab9-a611b58f6be6": "Tarek Hegazy",
 };
+
+// --- NEW: decode the real role out of the JWT instead of fabricating it locally ---
+function decodeTokenRole(): Exclude<Role, "pendingSeller"> | null {
+  const token = localStorage.getItem("token");
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    const rawRole =
+      payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ??
+      payload.role;
+    if (!rawRole) return null;
+    const normalized = String(rawRole).toLowerCase();
+    if (normalized === "admin") return "admin";
+    if (normalized === "seller") return "seller";
+    return "customer";
+  } catch {
+    return null;
+  }
+}
 
 export function TurathProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<Persisted>(defaults);
@@ -136,8 +148,7 @@ export function TurathProvider({ children }: { children: ReactNode }) {
     const fallbackCategories = state.categories.length > 0 ? state.categories : initialCategories;
 
     Promise.all([
-      fetch("/api/Books")
-        .then((res) => (res.ok ? res.json() : []))
+      apiFetch<any[]>("/api/Books")
         .then((data) =>
           Array.isArray(data)
             ? data.map((item: any) => ({
@@ -152,21 +163,22 @@ export function TurathProvider({ children }: { children: ReactNode }) {
                 description: item.description ?? "",
                 conditionNotes: item.conditionNotes ?? "",
                 sellerId: item.sellerId ?? "",
-                // FIX 1: Capture sellerName from backend DTO, fallback to known map
                 sellerName: item.sellerName || SELLER_FALLBACK_MAP[item.sellerId] || "Verified Seller",
                 spine: (item.spine ?? ["rust", "navy", "amber", "sage", "crimson"][Math.abs(Number(item.id)) % 5]) as Book["spine"],
                 images: [item.imageUrl ?? ""].filter(
                   (url): url is string => Boolean(url) && url !== "__REAL_COVER_URL_REQUIRED__",
                 ),
+                imageUrl: item.imageUrl ?? "",
                 reviews: Array.isArray(item.reviews) ? item.reviews : [],
                 flagged: false,
                 removed: false,
+                ageRating: item.ageRating ?? "All Ages",
+                approvalStatus: item.approvalStatus ?? "Approved",
               }))
             : [],
         )
         .catch(() => []),
-      fetch("/api/Categories")
-        .then((res) => (res.ok ? res.json() : []))
+      apiFetch<any[]>("/api/Categories")
         .then((data) =>
           Array.isArray(data)
             ? data.map((item: any) => item.name ?? item.title ?? item.category ?? "General")
@@ -195,79 +207,73 @@ export function TurathProvider({ children }: { children: ReactNode }) {
     };
   }, [hydrated, patch]);
 
-const syncOrdersFromServer = useCallback(async () => {
-  const userId = currentUserId() || state.authUserId;
-  if (!userId) return;
+  const syncOrdersFromServer = useCallback(async () => {
+    const userId = currentUserId() || state.authUserId;
+    if (!userId) return;
 
-  try {
-    // Calls your backend OrdersController for the logged-in customer/user
-    const data = await apiFetch<any[]>(`/api/Orders/${userId}`);
-    if (Array.isArray(data)) {
-      const mappedOrders: Order[] = data.map((o: any) => ({
-        id: String(o.id ?? o.orderId),
-        customerId: o.customerId ?? userId,
-        customerName: o.customerName ?? state.activeUser?.name ?? "Customer",
-        lines: (o.orderItems ?? o.items ?? o.lines ?? []).map((item: any) => ({
-          bookId: String(item.productId ?? item.bookId),
-          title: item.title ?? item.bookTitle ?? "Book",
-          author: item.author ?? "",
-          price: Number(item.unitPrice ?? item.price ?? 0),
-          quantity: Number(item.quantity ?? 1),
-          sellerId: item.sellerId ?? "",
-        })),
-        subtotal: Number(o.subtotal ?? o.totalPrice ?? 0),
-        shipping: Number(o.shipping ?? SHIPPING),
-        tax: Number(o.tax ?? 0),
-        total: Number(o.totalPrice ?? o.total ?? 0),
-        status: (o.status ?? "Pending") as OrderStatus,
-        placedAt: o.createdAt ? new Date(o.createdAt).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
-        address: o.shippingAddress ?? o.address ?? "Cairo, Egypt",
-      }));
+    try {
+      const data = await apiFetch<any[]>(`/api/Orders/${userId}`);
+      if (Array.isArray(data)) {
+        const mappedOrders: Order[] = data.map((o: any) => ({
+          id: String(o.id ?? o.orderId),
+          customerId: o.customerId ?? userId,
+          customerName: o.customerName ?? "Customer",
+          lines: (o.orderItems ?? o.items ?? o.lines ?? []).map((item: any) => ({
+            bookId: String(item.productId ?? item.bookId),
+            title: item.title ?? item.bookTitle ?? "Book",
+            author: item.author ?? "",
+            price: Number(item.unitPrice ?? item.price ?? 0),
+            quantity: Number(item.quantity ?? 1),
+            sellerId: item.sellerId ?? "",
+          })),
+          subtotal: Number(o.subtotal ?? o.totalPrice ?? o.total ?? 0),
+          shipping: Number(o.shipping ?? SHIPPING),
+          tax: Number(o.tax ?? 0),
+          total: Number(o.totalPrice ?? o.total ?? 0),
+          status: (o.status ?? "Pending") as OrderStatus,
+          placedAt: o.createdAt ? new Date(o.createdAt).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+          address: o.shippingAddress ?? o.address ?? "Cairo, Egypt",
+        }));
 
-      patch({ orders: mappedOrders });
+        patch({ orders: mappedOrders });
+      }
+    } catch {
+      // Retain existing local orders if network fetch fails
     }
-  } catch {
-    // Retain existing local orders if network fetch fails
-  }
-}, [state.authUserId, state.activeUser, patch]);
+  }, [state.authUserId, patch]);
 
-// 2. Synchronize user wishlist from server (or user-scoped key) on login
-const syncWishlist = useCallback(async () => {
-  const userId = currentUserId() || state.authUserId;
-  if (!userId) return;
+  const syncWishlist = useCallback(async () => {
+    const userId = currentUserId() || state.authUserId;
+    if (!userId) return;
 
-  try {
-    // If backend has a wishlist endpoint:
-    const data = await apiFetch<any[]>(`/api/Wishlist/${userId}`);
-    if (Array.isArray(data)) {
-      patch({ wishlist: data.map((item: any) => String(item.bookId ?? item.productId ?? item)) });
-      return;
+    try {
+      const data = await apiFetch<any[]>("/api/Wishlist");
+      if (Array.isArray(data)) {
+        patch({ wishlist: data.map((item: any) => String(item.bookId ?? item.productId ?? item)) });
+        return;
+      }
+    } catch {
+      const saved = localStorage.getItem(`turath-wishlist-${userId}`);
+      if (saved) {
+        try {
+          patch({ wishlist: JSON.parse(saved) });
+        } catch {}
+      }
     }
-  } catch {
-    // Fallback: load user-scoped wishlist from localStorage
-    const saved = localStorage.getItem(`turath-wishlist-${userId}`);
-    if (saved) {
-      try {
-        patch({ wishlist: JSON.parse(saved) });
-      } catch {}
+  }, [state.authUserId, patch]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (state.authUserId) {
+      void syncOrdersFromServer();
+      void syncWishlist();
     }
-  }
-}, [state.authUserId, patch]);
+  }, [hydrated, state.authUserId, syncOrdersFromServer, syncWishlist]);
 
-// 3. Trigger order and wishlist sync whenever authUserId changes
-useEffect(() => {
-  if (!hydrated) return;
-  if (state.authUserId) {
-    void syncOrdersFromServer();
-    void syncWishlist();
-  }
-}, [hydrated, state.authUserId, syncOrdersFromServer, syncWishlist]);
-
-// 4. Save wishlist under user-scoped key on change
-useEffect(() => {
-  if (!hydrated || !state.authUserId) return;
-  localStorage.setItem(`turath-wishlist-${state.authUserId}`, JSON.stringify(state.wishlist));
-}, [hydrated, state.authUserId, state.wishlist]);
+  useEffect(() => {
+    if (!hydrated || !state.authUserId) return;
+    localStorage.setItem(`turath-wishlist-${state.authUserId}`, JSON.stringify(state.wishlist));
+  }, [hydrated, state.authUserId, state.wishlist]);
 
   const syncCartFromServer = useCallback(async () => {
     const userId = currentUserId();
@@ -296,11 +302,13 @@ useEffect(() => {
 
   const value = useMemo<StoreValue>(() => {
     const { books, users, orders, categories, cart, wishlist, role, authUserId } = state;
-    const activeUser: AppUser =
-      users.find((u) => u.id === authUserId) ??
-      users.find((u) => u.id === roleUserId[role]) ??
-      users[0] ??
-      initialUsers[0]!;
+
+    // FIX: no longer falls back to a fake demo user when signed out.
+    // activeUser is null unless someone is actually authenticated.
+    const activeUser: AppUser | null = authUserId
+      ? users.find((u) => u.id === authUserId) ?? users.find((u) => u.email === localStorage.getItem("turath-email")) ?? null
+      : null;
+
     const bookById = (id: string) => books.find((b) => b.id === id);
 
     const updateBooks = (fn: (b: Book) => Book) => patch({ books: books.map(fn) });
@@ -310,8 +318,20 @@ useEffect(() => {
       hydrated,
       activeUser,
       isAuthenticated: Boolean(authUserId),
+
       setRole: (r) => patch({ role: r, authUserId: null, cart: [] }),
-      signOut: () => patch({ authUserId: null, role: "customer", cart: [] }),
+
+      // FIX: wishlist now clears on sign out too, not just cart.
+      signOut: () => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("turath-email");
+        patch({ authUserId: null, role: "customer", cart: [], wishlist: [] });
+      },
+
+      // FIX: role is no longer fabricated at signup. A "seller" signup still
+      // registers as a normal customer locally — actual seller status only ever
+      // comes from the real JWT role claim (see decodeTokenRole), set after
+      // signIn/register call the real backend and get a real token back.
       registerUser: (user) => {
         const created: AppUser = {
           ...user,
@@ -319,29 +339,43 @@ useEffect(() => {
           joined: new Date().toISOString().slice(0, 10),
           status: "active",
         };
+        const realRole = decodeTokenRole() ?? "customer";
+        const authenticatedId = currentUserId() ?? created.id;
+        const authenticatedUser = { ...created, id: authenticatedId, role: realRole };
+        localStorage.setItem("turath-email", user.email);
         patch({
-          users: [created, ...users],
-          authUserId: created.id,
-          role: created.role === "seller" ? "pendingSeller" : "customer",
+          users: [authenticatedUser, ...users.filter((existing) => existing.email.toLowerCase() !== user.email.toLowerCase())],
+          authUserId: authenticatedId,
+          role: realRole,
         });
-        return created;
+        return authenticatedUser;
       },
+
+      // FIX: role now comes from the real token, not from local user.sellerState guesswork.
       signIn: (email) => {
         const user = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
         if (!user || user.status === "suspended") return false;
-        patch({ authUserId: user.id, role: user.sellerState === "pending" ? "pendingSeller" : user.role });
+        const realRole = decodeTokenRole() ?? "customer";
+        const authenticatedId = currentUserId() ?? user.id;
+        localStorage.setItem("turath-email", user.email);
+        patch({
+          users: users.map((existing) => existing.id === user.id ? { ...existing, id: authenticatedId, role: realRole } : existing),
+          authUserId: authenticatedId,
+          role: realRole,
+        });
         return true;
       },
+
       updateProfile: (userId, profile) =>
         patch({ users: users.map((u) => (u.id === userId ? { ...u, ...profile } : u)) }),
       resetAll: () => {
         localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem("token");
         setState(defaults);
       },
       visibleBooks: books.filter((b) => !b.removed),
       bookById,
 
-      // FIX 2: Check direct name, fallback map, then users array
       sellerName: (id: string, directName?: string) =>
         directName ||
         SELLER_FALLBACK_MAP[id] ||
@@ -394,14 +428,24 @@ useEffect(() => {
         }
       },
       clearCart: () => patch({ cart: [] }),
-      toggleWishlist: (bookId) =>
-        patch({
-          wishlist: wishlist.includes(bookId)
-            ? wishlist.filter((w) => w !== bookId)
-            : [...wishlist, bookId],
-        }),
+      toggleWishlist: (bookId) => {
+        const saved = wishlist.includes(bookId);
+        patch({ wishlist: saved ? wishlist.filter((w) => w !== bookId) : [...wishlist, bookId] });
+        if (currentUserId()) {
+          void apiFetch(
+            saved ? `/api/Wishlist/remove/${bookId}` : "/api/Wishlist/add",
+            saved
+              ? { method: "DELETE" }
+              : { method: "POST", body: JSON.stringify({ bookId: Number(bookId) }) },
+          ).catch(() => undefined);
+        }
+      },
 
-      placeOrder: (address) => {
+      // FIX: now actually awaits and uses the REAL backend response —
+      // real order id, real total — instead of always fabricating one locally.
+      // Falls back to a local mock order ONLY if the real call fails, so
+      // demoing offline still works, but a working backend is always preferred.
+      placeOrder: async (address) => {
         const lines = cart
           .map((c) => {
             const b = bookById(c.bookId);
@@ -419,20 +463,51 @@ useEffect(() => {
         if (!lines.length) return null;
 
         const userId = currentUserId();
+
         if (userId) {
-          void apiFetch(`/api/Cart/checkout`, {
-            method: "POST",
-            body: JSON.stringify({ customerId: userId }),
-          }).catch(() => undefined);
+          try {
+            const result = await apiFetch<{ id?: string; orderId?: string; total?: number; totalPrice?: number }>(
+              `/api/Cart/checkout`,
+              {
+                method: "POST",
+                body: JSON.stringify({ customerId: userId }),
+              },
+            );
+
+            const realId = String(result?.id ?? result?.orderId ?? "");
+            const realTotal = Number(result?.total ?? result?.totalPrice ?? 0);
+
+            if (realId) {
+              const order: Order = {
+                id: realId,
+                customerId: userId,
+                customerName: activeUser?.name ?? "Customer",
+                lines,
+                subtotal: realTotal,
+                shipping: 0,
+                tax: 0,
+                total: realTotal,
+                status: "Pending",
+                placedAt: new Date().toISOString().slice(0, 10),
+                address,
+              };
+              patch({ orders: [order, ...orders], cart: [] });
+              void syncOrdersFromServer(); // refresh with full server-side details
+              return realId;
+            }
+          } catch {
+            // fall through to local mock order below if the real call fails
+          }
         }
 
+        // Local fallback (offline / no backend reachable) — clearly a mock order.
         const subtotal = lines.reduce((s, l) => s + l.price * l.quantity, 0);
         const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
-        const id = `TRH-${1100 + orders.length}`;
+        const id = `MOCK-${1100 + orders.length}`;
         const order: Order = {
           id,
-          customerId: activeUser.id,
-          customerName: activeUser.name,
+          customerId: activeUser?.id ?? "guest",
+          customerName: activeUser?.name ?? "Customer",
           lines,
           subtotal,
           shipping: SHIPPING,
@@ -454,6 +529,7 @@ useEffect(() => {
         });
         return id;
       },
+
       cancelOrder: (orderId) => {
         const userId = currentUserId();
         if (userId) {

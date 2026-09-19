@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Eye, Flag, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,9 @@ import { BranchDivider } from "@/components/turath/Ornaments";
 import { egp, roleLabels, useTurath } from "@/lib/turath/store";
 import type { Order } from "@/lib/turath/types";
 import { statusTone } from "./orders";
+import { apiFetch } from "@/lib/turath/api";
+
+type SellerRequest = { id: number; userId: string; userEmail: string; status: string; requestedAt: string };
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -53,6 +56,7 @@ function AdminPortal() {
   const [newCategory, setNewCategory] = useState("");
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [categoryDraft, setCategoryDraft] = useState("");
+  const [sellerRequests, setSellerRequests] = useState<SellerRequest[]>([]);
 
   const customers = users.filter((u) => u.role === "customer");
   const sellers = users.filter((u) => u.role === "seller");
@@ -61,6 +65,22 @@ function AdminPortal() {
   const pendingOrders = orders.filter((o) => o.status === "Pending");
   const flaggedBooks = books.filter((b) => b.flagged || b.removed);
   const sellerName = (id: string) => users.find((u) => u.id === id)?.name ?? "Unknown seller";
+
+  useEffect(() => {
+    void apiFetch<SellerRequest[]>("/api/SellerRequests?status=Pending")
+      .then((requests) => setSellerRequests(requests))
+      .catch(() => setSellerRequests([]));
+  }, []);
+
+  const decideServerSellerRequest = async (request: SellerRequest, decision: "approve" | "reject") => {
+    try {
+      await apiFetch(`/api/SellerRequests/${request.id}/${decision}`, { method: "POST" });
+      setSellerRequests((requests) => requests.filter((item) => item.id !== request.id));
+      toast.success(`${request.userEmail} ${decision}d`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to process seller request.");
+    }
+  };
 
   const metrics = [
     ["Customers", customers.length],
@@ -111,12 +131,23 @@ function AdminPortal() {
       </div>
 
       <section className="mt-10">
-        <SectionHeading title="Seller approval desk" count={pendingSellers.length} />
+        <SectionHeading title="Seller approval desk" count={sellerRequests.length || pendingSellers.length} />
         <div className="overflow-x-auto rounded-lg border bg-card">
           <Table>
             <TableHeader><TableRow><TableHead>Applicant</TableHead><TableHead>Joined</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Decision</TableHead></TableRow></TableHeader>
             <TableBody>
-              {pendingSellers.map((user) => (
+              {sellerRequests.map((request) => (
+                <TableRow key={request.id}>
+                  <TableCell><p className="font-medium">{request.userEmail}</p><p className="text-xs text-muted-foreground">{request.userId}</p></TableCell>
+                  <TableCell>{new Date(request.requestedAt).toLocaleDateString()}</TableCell>
+                  <TableCell><Badge className="bg-amber-gold/25 text-foreground">Pending review</Badge></TableCell>
+                  <TableCell className="text-right">
+                    <Button size="sm" onClick={() => void decideServerSellerRequest(request, "approve")}><Check className="h-4 w-4" /> Approve</Button>
+                    <Button size="sm" variant="ghost" className="ml-1 text-destructive" onClick={() => void decideServerSellerRequest(request, "reject")}><X className="h-4 w-4" /> Reject</Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {!sellerRequests.length && pendingSellers.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell><p className="font-medium">{user.name}</p><p className="text-xs text-muted-foreground">{user.email}</p></TableCell>
                   <TableCell>{user.joined}</TableCell>
@@ -127,7 +158,7 @@ function AdminPortal() {
                   </TableCell>
                 </TableRow>
               ))}
-              {!pendingSellers.length && <EmptyRow colSpan={4} text="No seller applications are waiting." />}
+              {!sellerRequests.length && !pendingSellers.length && <EmptyRow colSpan={4} text="No seller applications are waiting." />}
             </TableBody>
           </Table>
         </div>

@@ -28,7 +28,6 @@ const navFor: Record<Role, { to: string; label: string }[]> = {
   pendingSeller: [
     { to: "/", label: "Home" },
     { to: "/shop", label: "Shop" },
-    { to: "/seller", label: "Seller Portal" },
     { to: "/account", label: "Account" },
   ],
   admin: [
@@ -44,7 +43,9 @@ export function Layout({ children }: { children: ReactNode }) {
   const [wishOpen, setWishOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
 
-  const safeRole = role ?? "customer";
+  // An application is not seller access. Keep pending applicants on customer navigation
+  // until the API issues a new JWT containing the Seller role after approval.
+  const safeRole: Role = activeUser?.sellerState === "pending" ? "customer" : (role ?? "customer");
   const safeCart = Array.isArray(cart) ? cart : [];
   const safeWishlist = Array.isArray(wishlist) ? wishlist : [];
 

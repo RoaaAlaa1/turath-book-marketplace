@@ -58,6 +58,7 @@ function SellerPortal() {
   const { role, activeUser, books, orders, categories, saveBook, deleteBook, setOrderStatus } =
     useTurath();
   const [editing, setEditing] = useState<Book | null>(null);
+  const isPendingSeller = activeUser?.sellerState === "pending";
 
   const myBooks = useMemo(
     () => books.filter((b) => b.sellerId === activeUser.id),
@@ -78,7 +79,7 @@ function SellerPortal() {
       0,
     );
 
-  if (role === "pendingSeller") {
+  if (role === "pendingSeller" || isPendingSeller) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-24 text-center">
         <div className="rounded-lg border border-amber-gold/50 bg-amber-gold/10 p-10">
