@@ -24,7 +24,7 @@ namespace TurathApi.Controllers
 
         /// <summary>
         /// GET /api/books
-        /// Returns the public catalog — approved books only.
+        /// Returns the public catalog ï¿½ approved books only.
         /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<BookResponseDto>>> GetAll(
@@ -34,6 +34,7 @@ namespace TurathApi.Controllers
         {
             var query = _context.Books
                 .Include(b => b.Category)
+                .Include(b => b.Seller)
                 .Where(b => b.ApprovalStatus == ApprovalStatus.Approved);
 
             if (!string.IsNullOrWhiteSpace(search))
@@ -68,6 +69,11 @@ namespace TurathApi.Controllers
                 CategoryId = b.CategoryId,
                 CategoryName = b.Category != null ? b.Category.Name : string.Empty,
                 SellerId = b.SellerId,
+                SellerName = b.Seller != null
+                    ? (!string.IsNullOrWhiteSpace(b.Seller.FirstName)
+                        ? (b.Seller.FirstName + " " + (b.Seller.LastName ?? "")).Trim()
+                        : b.Seller.UserName ?? "Verified Seller")
+                    : "Unknown Seller",
                 ImageUrl = b.ImageUrl,
                 Condition = b.Condition,
                 AgeRating = b.AgeRating,
@@ -82,6 +88,7 @@ namespace TurathApi.Controllers
         {
             var book = await _context.Books
                 .Include(b => b.Category)
+                .Include(b => b.Seller)
                 .Include(b => b.Reviews)
                 .FirstOrDefaultAsync(b => b.Id == id);
 
@@ -99,6 +106,11 @@ namespace TurathApi.Controllers
                 CategoryId = book.CategoryId,
                 CategoryName = book.Category?.Name ?? string.Empty,
                 SellerId = book.SellerId,
+                SellerName = book.Seller != null
+                    ? (!string.IsNullOrWhiteSpace(book.Seller.FirstName)
+                        ? (book.Seller.FirstName + " " + (book.Seller.LastName ?? "")).Trim()
+                        : book.Seller.UserName ?? "Verified Seller")
+                    : "Unknown Seller",
                 ImageUrl = book.ImageUrl,
                 Condition = book.Condition,
                 AgeRating = book.AgeRating,
@@ -122,6 +134,7 @@ namespace TurathApi.Controllers
 
             var books = await _context.Books
                 .Include(b => b.Category)
+                .Include(b => b.Seller)
                 .Where(b => b.SellerId == sellerId)
                 .Select(b => new BookResponseDto
                 {
@@ -134,6 +147,11 @@ namespace TurathApi.Controllers
                     CategoryId = b.CategoryId,
                     CategoryName = b.Category != null ? b.Category.Name : string.Empty,
                     SellerId = b.SellerId,
+                    SellerName = b.Seller != null
+                        ? (!string.IsNullOrWhiteSpace(b.Seller.FirstName)
+                            ? (b.Seller.FirstName + " " + (b.Seller.LastName ?? "")).Trim()
+                            : b.Seller.UserName ?? "Verified Seller")
+                        : "Unknown Seller",
                     ImageUrl = b.ImageUrl,
                     Condition = b.Condition,
                     AgeRating = b.AgeRating,
@@ -145,7 +163,7 @@ namespace TurathApi.Controllers
         }
 
         [HttpPost]
-        [Authorize]
+        [Authorize(Roles = "Seller")]
         public async Task<IActionResult> Create([FromBody] CreateBookDto dto)
         {
             var sellerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -154,11 +172,17 @@ namespace TurathApi.Controllers
                 return Unauthorized(new { message = "Invalid user identifier." });
             }
 
+            var categoryExists = await _context.Categories.AnyAsync(c => c.Id == dto.CategoryId);
+            if (!categoryExists)
+            {
+                return BadRequest(new { message = "Selected category does not exist." });
+            }
+
             var book = new Book
             {
-                Title = dto.Title,
-                Author = dto.Author,
-                Description = dto.Description,
+                Title = dto.Title.Trim(),
+                Author = dto.Author.Trim(),
+                Description = dto.Description.Trim(),
                 Price = dto.Price,
                 Quantity = dto.Quantity,
                 CategoryId = dto.CategoryId,
@@ -176,7 +200,7 @@ namespace TurathApi.Controllers
         }
 
         [HttpPut("{id:int}")]
-        [Authorize]
+        [Authorize(Roles = "Seller")]
         public async Task<IActionResult> Edit(int id, [FromBody] CreateBookDto dto)
         {
             var sellerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -193,9 +217,15 @@ namespace TurathApi.Controllers
                 return NotFound(new { message = "Book not found or you do not have permission to edit it." });
             }
 
-            existingBook.Title = dto.Title;
-            existingBook.Author = dto.Author;
-            existingBook.Description = dto.Description;
+            var categoryExists = await _context.Categories.AnyAsync(c => c.Id == dto.CategoryId);
+            if (!categoryExists)
+            {
+                return BadRequest(new { message = "Selected category does not exist." });
+            }
+
+            existingBook.Title = dto.Title.Trim();
+            existingBook.Author = dto.Author.Trim();
+            existingBook.Description = dto.Description.Trim();
             existingBook.Condition = dto.Condition;
             existingBook.AgeRating = dto.AgeRating;
             existingBook.Price = dto.Price;

@@ -30,8 +30,13 @@ namespace TurathApi.Services
 
         public async Task<string> GetReplyAsync(string userMessage, List<GroqMessage>? history = null)
         {
-            var apiKey = _config["Groq:ApiKey"];
-            var model = _config["Groq:Model"] ?? "llama-3.3-70b-versatile";
+            var apiKey = _config["Groq:ApiKey"] ?? Environment.GetEnvironmentVariable("GROQ_API_KEY");
+            var model = _config["Groq:Model"] ?? Environment.GetEnvironmentVariable("GROQ_MODEL") ?? "llama-3.3-70b-versatile";
+
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                return "The book assistant is unavailable because the Groq API key is not configured. Add GROQ_API_KEY to your environment to enable recommendations.";
+            }
 
             var messages = new List<GroqMessage>
             {
@@ -85,7 +90,8 @@ namespace TurathApi.Services
             {
                 Model = model,
                 Messages = messages,
-                Tools = tools
+                Tools = tools,
+                ToolChoice = tools == null ? "none" : "auto"
             };
 
             var json = JsonSerializer.Serialize(request, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull });

@@ -116,8 +116,8 @@ namespace TurathApi.Services.Implementations
             var jwtSettings = _configuration.GetSection("Jwt");
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var durationInMinutes = Convert.ToDouble(jwtSettings["DurationInMinutes"]);
-            var expiresOn = DateTime.UtcNow.AddMinutes(durationInMinutes);
+            var durationInDays = Convert.ToDouble(jwtSettings["DurationInDays"]);
+            var expiresOn = DateTime.UtcNow.AddDays(durationInDays);
 
             var token = new JwtSecurityToken(
                 issuer: jwtSettings["Issuer"],

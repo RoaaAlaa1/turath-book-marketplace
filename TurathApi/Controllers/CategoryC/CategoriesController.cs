@@ -132,7 +132,8 @@ namespace TurathApi.Controllers.Categories
             }
 
             var booksInCategory = await _context.Books
-                .Where(b => b.Category.Name == name)
+                .Include(b => b.Category)
+                .Where(b => b.Category != null && b.Category.Name == name)
                 .ToListAsync();
 
             if (booksInCategory.Count > 0 && !confirmDeleteBooks)

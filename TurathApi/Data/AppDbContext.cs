@@ -12,7 +12,6 @@ namespace TurathApi.Data
 
         public DbSet<SupportTicket> SupportTickets { get; set; }
         public DbSet<Review> Reviews => Set<Review>();
-        public DbSet<SellerRequest> SellerRequests { get; set; }
         public DbSet<Cart> Carts => Set<Cart>();
         public DbSet<CartItem> CartItems => Set<CartItem>();
         public DbSet<Order> Orders => Set<Order>();
@@ -22,6 +21,9 @@ namespace TurathApi.Data
         public DbSet<Comment> Comments => Set<Comment>();
         public DbSet<CategoryRequest> CategoryRequests => Set<CategoryRequest>();
         public DbSet<WishlistItem> WishlistItems => Set<WishlistItem>();
+        public DbSet<SellerRequest> SellerRequests { get; set; }
+
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

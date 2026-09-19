@@ -31,7 +31,6 @@ namespace TurathApi.Controllers
                 return Unauthorized(new { message = "Invalid user identifier." });
             }
 
-            // Ensure customers can only view their own cart (unless Admin)
             if (customerId != currentUserId && !User.IsInRole("Admin"))
             {
                 return Forbid();
@@ -43,7 +42,7 @@ namespace TurathApi.Controllers
 
             if (cart == null)
             {
-                return NotFound(new { message = "Cart not found." });
+                return Ok(new { customerId, items = new List<CartItem>() });
             }
 
             return Ok(cart);
@@ -57,6 +56,17 @@ namespace TurathApi.Controllers
             if (string.IsNullOrEmpty(customerId))
             {
                 return Unauthorized("Invalid user identifier.");
+            }
+
+            if (dto.ProductId <= 0 || dto.Quantity <= 0)
+            {
+                return BadRequest(new { message = "Invalid product or quantity." });
+            }
+
+            var book = await _context.Books.FirstOrDefaultAsync(b => b.Id == dto.ProductId && b.ApprovalStatus == TurathApi.Models.Enums.ApprovalStatus.Approved);
+            if (book == null)
+            {
+                return NotFound(new { message = "Book not found or not approved." });
             }
 
             var cart = await _context.Carts
@@ -73,9 +83,15 @@ namespace TurathApi.Controllers
             var cartItem = await _context.CartItems
                 .FirstOrDefaultAsync(i => i.CartId == cart.Id && i.ProductId == dto.ProductId);
 
+            var newQuantity = (cartItem?.Quantity ?? 0) + dto.Quantity;
+            if (newQuantity > book.Quantity)
+            {
+                return BadRequest(new { message = $"Only {book.Quantity} copies are available for this book." });
+            }
+
             if (cartItem != null)
             {
-                cartItem.Quantity += dto.Quantity;
+                cartItem.Quantity = newQuantity;
             }
             else
             {
@@ -102,7 +118,13 @@ namespace TurathApi.Controllers
                 return Unauthorized("Invalid user identifier.");
             }
 
+            if (dto.ProductId <= 0)
+            {
+                return BadRequest(new { message = "Invalid product selection." });
+            }
+
             var cart = await _context.Carts
+                .Include(c => c.CartItems)
                 .FirstOrDefaultAsync(c => c.CustomerId == customerId);
 
             if (cart == null)
@@ -110,12 +132,16 @@ namespace TurathApi.Controllers
                 return NotFound(new { message = "Cart does not exist." });
             }
 
-            var cartItem = await _context.CartItems
-                .FirstOrDefaultAsync(i => i.CartId == cart.Id && i.ProductId == dto.ProductId);
-
+            var cartItem = cart.CartItems.FirstOrDefault(i => i.ProductId == dto.ProductId);
             if (cartItem == null)
             {
                 return NotFound(new { message = "Product does not exist in the cart." });
+            }
+
+            var book = await _context.Books.FirstOrDefaultAsync(b => b.Id == dto.ProductId && b.ApprovalStatus == TurathApi.Models.Enums.ApprovalStatus.Approved);
+            if (book == null)
+            {
+                return NotFound(new { message = "Book is no longer available." });
             }
 
             if (dto.Quantity <= 0)
@@ -124,6 +150,11 @@ namespace TurathApi.Controllers
             }
             else
             {
+                if (dto.Quantity > book.Quantity)
+                {
+                    return BadRequest(new { message = $"Only {book.Quantity} copies are available." });
+                }
+
                 cartItem.Quantity = dto.Quantity;
             }
 
@@ -166,7 +197,7 @@ namespace TurathApi.Controllers
 
         /// Creates an order from the current cart items for the authenticated user.
         [HttpPost("checkout")]
-        public async Task<IActionResult> Checkout([FromBody] CheckoutDto dto)        
+        public async Task<IActionResult> Checkout([FromBody] CheckoutDto dto)
         {
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(customerId))
@@ -183,32 +214,50 @@ namespace TurathApi.Controllers
                 return BadRequest(new { message = "The cart is empty. Cannot complete the checkout process." });
             }
 
-            decimal totalAmount = cart.CartItems.Sum(item => item.Quantity * 10);
+            var orderItems = new List<OrderItem>();
+            decimal totalAmount = 0m;
+
+            foreach (var cartItem in cart.CartItems)
+            {
+                var book = await _context.Books.FirstOrDefaultAsync(b => b.Id == cartItem.ProductId && b.ApprovalStatus == TurathApi.Models.Enums.ApprovalStatus.Approved);
+                if (book == null)
+                {
+                    return BadRequest(new { message = $"Book #{cartItem.ProductId} is no longer available." });
+                }
+
+                if (cartItem.Quantity > book.Quantity)
+                {
+                    return BadRequest(new { message = $"Only {book.Quantity} copies of '{book.Title}' are in stock." });
+                }
+
+                var lineTotal = cartItem.Quantity * book.Price;
+                totalAmount += lineTotal;
+
+                orderItems.Add(new OrderItem
+                {
+                    ProductId = cartItem.ProductId,
+                    Quantity = cartItem.Quantity,
+                    Price = book.Price
+                });
+
+                book.Quantity -= cartItem.Quantity;
+            }
 
             var order = new Order
             {
                 CustomerId = customerId,
                 Total = totalAmount,
                 Status = "Pending",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                OrderItems = orderItems
             };
-
-            foreach (var cartItem in cart.CartItems)
-            {
-                order.OrderItems.Add(new OrderItem
-                {
-                    ProductId = cartItem.ProductId,
-                    Quantity = cartItem.Quantity,
-                    Price = 10
-                });
-            }
 
             _context.Orders.Add(order);
             _context.CartItems.RemoveRange(cart.CartItems);
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Order placed successfully.", orderId = order.Id });
+            return Ok(new { message = "Order placed successfully.", orderId = order.Id, total = totalAmount });
         }
     }
 }

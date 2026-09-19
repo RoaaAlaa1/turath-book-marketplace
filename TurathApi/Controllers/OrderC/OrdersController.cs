@@ -19,14 +19,19 @@ namespace TurathApi.Controllers.Orders
             _context = context;
         }
 
-        // Returns all orders for the currently authenticated customer.
-        [HttpGet("{customerId}")]   
-        public async Task<ActionResult<IEnumerable<Order>>> GetMyOrders()
+        // GET /api/Orders/{customerId}
+        [HttpGet("{customerId}")]
+        public async Task<IActionResult> GetMyOrders(string customerId)
         {
-            var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(customerId))
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(currentUserId))
             {
                 return Unauthorized(new { message = "Invalid user identifier." });
+            }
+
+            if (customerId != currentUserId && !User.IsInRole("Admin"))
+            {
+                return Forbid();
             }
 
             var orders = await _context.Orders
@@ -34,14 +39,32 @@ namespace TurathApi.Controllers.Orders
                 .AsNoTracking()
                 .Where(o => o.CustomerId == customerId)
                 .OrderByDescending(o => o.CreatedAt)
+                .Select(o => new
+                {
+                    id = o.Id,
+                    customerId = o.CustomerId,
+                    status = o.Status,
+                    totalPrice = o.Total,
+                    createdAt = o.CreatedAt,
+                    items = o.OrderItems.Select(oi => new
+                    {
+                        id = oi.Id,
+                        productId = oi.ProductId,
+                        title = _context.Books.Where(b => b.Id == oi.ProductId).Select(b => b.Title).FirstOrDefault() ?? "Book",
+                        author = _context.Books.Where(b => b.Id == oi.ProductId).Select(b => b.Author).FirstOrDefault() ?? "",
+                        imageUrl = _context.Books.Where(b => b.Id == oi.ProductId).Select(b => b.ImageUrl).FirstOrDefault() ?? "",
+                        unitPrice = oi.Price,
+                        quantity = oi.Quantity
+                    })
+                })
                 .ToListAsync();
 
             return Ok(orders);
         }
 
-        /// Returns order details only if it belongs to the authenticated customer.
+        // GET /api/Orders/details/{id:guid}
         [HttpGet("details/{id:guid}")]
-        public async Task<ActionResult<Order>> GetOrder(Guid id)
+        public async Task<IActionResult> GetOrder(Guid id)
         {
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(customerId))
@@ -52,7 +75,26 @@ namespace TurathApi.Controllers.Orders
             var order = await _context.Orders
                 .Include(o => o.OrderItems)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(o => o.Id == id && o.CustomerId == customerId);
+                .Where(o => o.Id == id && o.CustomerId == customerId)
+                .Select(o => new
+                {
+                    id = o.Id,
+                    customerId = o.CustomerId,
+                    status = o.Status,
+                    totalPrice = o.Total,
+                    createdAt = o.CreatedAt,
+                    items = o.OrderItems.Select(oi => new
+                    {
+                        id = oi.Id,
+                        productId = oi.ProductId,
+                        title = _context.Books.Where(b => b.Id == oi.ProductId).Select(b => b.Title).FirstOrDefault() ?? "Book",
+                        author = _context.Books.Where(b => b.Id == oi.ProductId).Select(b => b.Author).FirstOrDefault() ?? "",
+                        imageUrl = _context.Books.Where(b => b.Id == oi.ProductId).Select(b => b.ImageUrl).FirstOrDefault() ?? "",
+                        unitPrice = oi.Price,
+                        quantity = oi.Quantity
+                    })
+                })
+                .FirstOrDefaultAsync();
 
             if (order == null)
             {
@@ -62,6 +104,33 @@ namespace TurathApi.Controllers.Orders
             return Ok(order);
         }
 
-    }
+        // PATCH /api/Orders/{id:guid}/cancel
+        [HttpPatch("{id:guid}/cancel")]
+        public async Task<ActionResult> CancelOrder(Guid id)
+        {
+            var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(customerId))
+            {
+                return Unauthorized(new { message = "Invalid user identifier." });
+            }
 
+            var order = await _context.Orders
+                .FirstOrDefaultAsync(o => o.Id == id && o.CustomerId == customerId);
+
+            if (order == null)
+            {
+                return NotFound(new { message = "Order not found or not accessible." });
+            }
+
+            if (order.Status != "Pending")
+            {
+                return BadRequest(new { message = "Only pending orders can be cancelled." });
+            }
+
+            order.Status = "Cancelled";
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Order cancelled successfully." });
+        }
+    }
 }
