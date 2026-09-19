@@ -12,13 +12,8 @@ using TurathApi.Data;
 namespace TurathApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-<<<<<<<< HEAD:TurathApi/Migrations/20260918215939_InitialCleanCreate.Designer.cs
     [Migration("20260918215939_InitialCleanCreate")]
     partial class InitialCleanCreate
-========
-    [Migration("20260918174448_TempSellerRequests")]
-    partial class TempSellerRequests
->>>>>>>> cfa0f7b9e26070812dc28f615256b8ccbce6e37f:TurathApi/Migrations/20260918174448_TempSellerRequests.Designer.cs
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

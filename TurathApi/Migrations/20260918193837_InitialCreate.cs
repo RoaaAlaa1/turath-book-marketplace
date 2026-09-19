@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace TurathApi.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCleanCreate : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -220,7 +220,6 @@ namespace TurathApi.Migrations
 
             migrationBuilder.CreateTable(
                 name: "CategoryRequests",
-<<<<<<<< HEAD:TurathApi/Migrations/20260918215939_InitialCleanCreate.cs
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
@@ -268,56 +267,7 @@ namespace TurathApi.Migrations
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     CartId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-========
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    SellerId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    CategoryName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    RequestedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_CategoryRequests", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_CategoryRequests_AspNetUsers_SellerId",
-                        column: x => x.SellerId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
 
-            migrationBuilder.CreateTable(
-                name: "SellerRequests",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    user_id = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    status = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    requested_at = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    processed_at = table.Column<DateTime>(type: "datetime2", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SellerRequests", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_SellerRequests_AspNetUsers_user_id",
-                        column: x => x.user_id,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "CartItems",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    CartId = table.Column<int>(type: "int", nullable: false),
->>>>>>>> cfa0f7b9e26070812dc28f615256b8ccbce6e37f:TurathApi/Migrations/20260918193837_InitialCreate.cs
                     ProductId = table.Column<int>(type: "int", nullable: false),
                     Quantity = table.Column<int>(type: "int", nullable: false)
                 },
