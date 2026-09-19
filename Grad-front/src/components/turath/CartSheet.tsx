@@ -119,6 +119,8 @@ function Shipping({ address, setAddress, city, setCity, delivery, setDelivery, u
   return <div className="space-y-5"><div><p className="font-display text-lg">1. Order review & shipping</p><p className="text-sm text-muted-foreground">Delivering for {userName}</p></div><Field label="Street address" value={address} onChange={setAddress} placeholder="12 Al-Mu'izz St" /><Field label="City" value={city} onChange={setCity} placeholder="Cairo" /><div className="space-y-1.5"><Label>Confirmation email</Label><Input type="email" value={confirmEmail} onChange={(event) => setConfirmEmail(event.target.value)} placeholder="you@example.com" /><p className="text-xs text-muted-foreground">Your order confirmation will be sent to this address.</p>{confirmEmail.trim().length > 0 && !emailValid && <p className="text-xs text-destructive">Enter a valid email address.</p>}</div><div className="space-y-2"><Label>Delivery method</Label><Choice active={delivery === "standard"} onClick={() => setDelivery("standard")} icon={<Truck className="h-4 w-4" />} title="Standard Sustainable Delivery" detail="3-5 days · 35 EGP" /><Choice active={delivery === "express"} onClick={() => setDelivery("express")} icon={<Truck className="h-4 w-4" />} title="Express Courier" detail="1-2 days · 80 EGP" /></div></div>;
 }
 
+
+
 function GuestNotice() {
   return (
     <div className="mb-4 flex items-start gap-3 rounded-lg border border-primary/30 bg-accent/40 p-3">
@@ -141,17 +143,222 @@ function GuestNotice() {
 }
 
 function Payment({ payment, setPayment, cardholder, setCardholder, card, setCard, expiry, setExpiry, cvv, setCvv }: any) {
-  return <div className="space-y-5"><div><p className="font-display text-lg">2. Payment details</p><p className="text-sm text-muted-foreground">Your payment is simulated locally.</p></div><Choice active={payment === "card"} onClick={() => setPayment("card")} icon={<CreditCard className="h-4 w-4" />} title="Credit / Debit Card" detail="Visa or Mastercard" /><Choice active={payment === "cash"} onClick={() => setPayment("cash")} icon={<span className="text-xs">EGP</span>} title="Cash on Delivery" detail="Pay when your books arrive" />{payment === "card" && <div className="space-y-3 rounded-lg border bg-card p-3"><Field label="Cardholder name" value={cardholder} onChange={setCardholder} placeholder="Roaa Alaa" /><Field label="Card number" value={card} onChange={(value: string) => setCard(value.replace(/\D/g, "").replace(/(.{4})/g, "$1 ").trim().slice(0, 19))} placeholder="4242 4242 4242 4242" /><div className="grid grid-cols-2 gap-3"><Field label="Expiry" value={expiry} onChange={(value: string) => setExpiry(value.replace(/\D/g, "").replace(/^(\d{2})(\d)/, "$1/$2").slice(0, 5))} placeholder="MM/YY" /><Field label="CVV" value={cvv} onChange={(value: string) => setCvv(value.replace(/\D/g, "").slice(0, 3))} placeholder="123" /></div></div>}</div>;
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="font-display text-lg">2. Payment details</p>
+        <p className="text-sm text-muted-foreground">Your payment is simulated locally.</p>
+      </div>
+      <Choice
+        active={payment === "card"}
+        onClick={() => setPayment("card")}
+        icon={<CreditCard className="h-4 w-4" />}
+        title="Credit / Debit Card"
+        detail="Visa or Mastercard"
+      />
+      <Choice
+        active={payment === "cash"}
+        onClick={() => setPayment("cash")}
+        icon={<span className="text-xs">EGP</span>}
+        title="Cash on Delivery"
+        detail="Pay when your books arrive"
+      />
+      {payment === "card" && (
+        <div className="space-y-3 rounded-lg border bg-card p-3">
+          <Field
+            label="Cardholder name"
+            value={cardholder}
+            onChange={setCardholder}
+            placeholder="Name on card"
+          />
+          <Field
+            label="Card number"
+            value={card}
+            onChange={(value: string) =>
+              setCard(
+                value
+                  .replace(/\D/g, "")
+                  .replace(/(.{4})/g, "$1 ")
+                  .trim()
+                  .slice(0, 19)
+              )
+            }
+            placeholder="4242 4242 4242 4242"
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label="Expiry"
+              value={expiry}
+              onChange={(value: string) =>
+                setExpiry(
+                  value
+                    .replace(/\D/g, "")
+                    .replace(/^(\d{2})(\d)/, "$1/$2")
+                    .slice(0, 5)
+                )
+              }
+              placeholder="MM/YY"
+            />
+            <Field
+              label="CVV"
+              value={cvv}
+              onChange={(value: string) =>
+                setCvv(value.replace(/\D/g, "").slice(0, 3))
+              }
+              placeholder="123"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function SecureOtp({ otp, setOtp, onVerify }: any) { return <div className="space-y-5 py-10 text-center"><ShieldCheck className="mx-auto h-12 w-12 text-primary" /><p className="font-display text-xl">Verified by Visa</p><p className="text-sm text-muted-foreground">Code sent to +20 10****5678</p><Input className="text-center text-xl tracking-[0.4em]" maxLength={6} inputMode="numeric" value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, ""))} placeholder="123456" /><p className="text-xs text-muted-foreground">Use 123456 to approve this mock 3D-Secure check.</p><Button variant="outline" className="w-full" onClick={onVerify}>Submit code</Button></div>; }
+function SecureOtp({ otp, setOtp, onVerify }: any) {
+  return (
+    <div className="space-y-5 py-10 text-center">
+      <ShieldCheck className="mx-auto h-12 w-12 text-primary" />
+      <p className="font-display text-xl">Verified by Visa</p>
+      <p className="text-sm text-muted-foreground">Code sent to +20 10****5678</p>
+      <Input
+        className="text-center text-xl tracking-[0.4em]"
+        maxLength={6}
+        inputMode="numeric"
+        value={otp}
+        onChange={(event) => setOtp(event.target.value.replace(/\D/g, ""))}
+        placeholder="123456"
+      />
+      <p className="text-xs text-muted-foreground">Use 123456 to approve this mock 3D-Secure check.</p>
+      <Button variant="outline" className="w-full" onClick={onVerify}>
+        Submit code
+      </Button>
+    </div>
+  );
+}
 
-function Confirmation({ orderId, email, total, address, onEmail }: any) { return <div className="space-y-4 py-8 text-center"><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground"><Check className="h-7 w-7" /></div><p className="font-display text-xl">Thank you for your order</p><p className="text-sm text-muted-foreground">{orderId} · Estimated arrival in 3-5 days</p><div className="rounded-lg border bg-card p-3 text-left text-sm"><Row label="Total" value={egp(total)} strong /><p className="mt-2 text-xs text-muted-foreground">Confirmation email sent to {email}</p></div><Button variant="outline" className="w-full" onClick={onEmail}><Mail className="h-4 w-4" /> Preview confirmation email</Button><Button asChild className="w-full"><Link to="/orders">View order in My Account</Link></Button><p className="text-xs text-muted-foreground">Ships to {address}</p></div>; }
+function Confirmation({ orderId, email, total, address, onEmail }: any) {
+  return (
+    <div className="space-y-4 py-8 text-center">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground">
+        <Check className="h-7 w-7" />
+      </div>
+      <p className="font-display text-xl">Thank you for your order</p>
+      <p className="text-sm text-muted-foreground">{orderId} · Estimated arrival in 3-5 days</p>
+      <div className="rounded-lg border bg-card p-3 text-left text-sm">
+        <Row label="Total" value={egp(total)} strong />
+        <p className="mt-2 text-xs text-muted-foreground">Confirmation email sent to {email}</p>
+      </div>
+      <Button variant="outline" className="w-full" onClick={onEmail}>
+        <Mail className="h-4 w-4" /> Preview confirmation email
+      </Button>
+      <Button asChild className="w-full">
+        <Link to="/orders">View order in My Account</Link>
+      </Button>
+      <p className="text-xs text-muted-foreground">Ships to {address}</p>
+    </div>
+  );
+}
 
-function CheckoutFooter({ step, total, subtotal, shipping, tax, shippingValid, cardValid, loading, payment, isAuthenticated, onBack, onNext, onPay, onVerify }: any) { return <div className="space-y-3 border-t bg-card px-4 py-4"><div className="space-y-1 text-sm"><Row label="Subtotal" value={egp(subtotal)} /><Row label="Shipping" value={egp(shipping)} /><Row label="Tax (14%)" value={egp(tax)} /><Separator className="my-2" /><Row label="Total" value={egp(total)} strong /></div><div className="flex gap-2">{step > 0 && <Button variant="outline" className="flex-1" onClick={onBack}>Back</Button>}{step === 0 && <Button className="flex-1" disabled={!isAuthenticated} onClick={onNext}>{isAuthenticated ? "Proceed to checkout" : "Sign in to checkout"}</Button>}{step === 1 && <Button className="flex-1" disabled={!shippingValid} onClick={onNext}>Continue to payment</Button>}{step === 2 && <Button className="flex-1" disabled={loading || (payment === "card" && !cardValid)} onClick={onPay}>{loading ? "Connecting securely..." : payment === "card" ? "Pay now" : "Place cash order"}</Button>}{step === 3 && <Button className="flex-1" onClick={onVerify}>Submit verification</Button>}</div></div>; }
+function CheckoutFooter({ step, total, subtotal, shipping, tax, shippingValid, cardValid, loading, payment, isAuthenticated, onBack, onNext, onPay, onVerify }: any) {
+  return (
+    <div className="space-y-3 border-t bg-card px-4 py-4">
+      <div className="space-y-1 text-sm">
+        <Row label="Subtotal" value={egp(subtotal)} />
+        <Row label="Shipping" value={egp(shipping)} />
+        <Row label="Tax (14%)" value={egp(tax)} />
+        <Separator className="my-2" />
+        <Row label="Total" value={egp(total)} strong />
+      </div>
+      <div className="flex gap-2">
+        {step > 0 && (
+          <Button variant="outline" className="flex-1" onClick={onBack}>
+            Back
+          </Button>
+        )}
+        {step === 0 && (
+          <Button className="flex-1" disabled={!isAuthenticated} onClick={onNext}>
+            {isAuthenticated ? "Proceed to checkout" : "Sign in to checkout"}
+          </Button>
+        )}
+        {step === 1 && (
+          <Button className="flex-1" disabled={!shippingValid} onClick={onNext}>
+            Continue to payment
+          </Button>
+        )}
+        {step === 2 && (
+          <Button
+            className="flex-1"
+            disabled={loading || (payment === "card" && !cardValid)}
+            onClick={onPay}
+          >
+            {loading ? "Connecting securely..." : payment === "card" ? "Pay now" : "Place cash order"}
+          </Button>
+        )}
+        {step === 3 && (
+          <Button className="flex-1" onClick={onVerify}>
+            Submit verification
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
 
-function EmailPreview({ orderId, total, address, onClose }: any) { return <div className="absolute inset-0 z-10 overflow-y-auto bg-background p-5"><div className="flex items-center justify-between"><p className="font-display text-lg">Turath confirmation email</p><Button size="sm" variant="ghost" onClick={onClose}>Close</Button></div><div className="mt-6 space-y-4 rounded-lg border bg-card p-5 text-sm"><p className="font-arabic-display text-2xl text-primary">تراث</p><p>Thank you for giving books a new life.</p><Separator /><p><strong>Order:</strong> {orderId}</p><p><strong>Delivery:</strong> {address}</p><p><strong>Total:</strong> {egp(total)}</p><p className="text-muted-foreground">Need help? Reply to this message or visit Turath support.</p></div></div>; }
+function EmailPreview({ orderId, total, address, onClose }: any) {
+  return (
+    <div className="absolute inset-0 z-10 overflow-y-auto bg-background p-5">
+      <div className="flex items-center justify-between">
+        <p className="font-display text-lg">Turath confirmation email</p>
+        <Button size="sm" variant="ghost" onClick={onClose}>
+          Close
+        </Button>
+      </div>
+      <div className="mt-6 space-y-4 rounded-lg border bg-card p-5 text-sm">
+        <p className="font-arabic-display text-2xl text-primary">تراث</p>
+        <p>Thank you for giving books a new life.</p>
+        <Separator />
+        <p><strong>Order:</strong> {orderId}</p>
+        <p><strong>Delivery:</strong> {address}</p>
+        <p><strong>Total:</strong> {egp(total)}</p>
+        <p className="text-muted-foreground">Need help? Reply to this message or visit Turath support.</p>
+      </div>
+    </div>
+  );
+}
 
-function Choice({ active, onClick, icon, title, detail }: any) { return <button type="button" className={`flex w-full items-center gap-3 rounded-md border p-3 text-left ${active ? "border-primary bg-accent/50" : "hover:bg-muted"}`} onClick={onClick}><span className="text-primary">{icon}</span><span className="flex-1"><span className="block text-sm font-medium">{title}</span><span className="block text-xs text-muted-foreground">{detail}</span></span>{active && <Check className="h-4 w-4 text-primary" />}</button>; }
-function Field({ label, value, onChange, placeholder }: any) { return <div className="space-y-1.5"><Label>{label}</Label><Input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} /></div>; }
-function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) { return <div className={`flex justify-between ${strong ? "font-semibold" : "text-muted-foreground"}`}><span>{label}</span><span>{value}</span></div>; }
+function Choice({ active, onClick, icon, title, detail }: any) {
+  return (
+    <button
+      type="button"
+      className={`flex w-full items-center gap-3 rounded-md border p-3 text-left ${
+        active ? "border-primary bg-accent/50" : "hover:bg-muted"
+      }`}
+      onClick={onClick}
+    >
+      <span className="text-primary">{icon}</span>
+      <span className="flex-1">
+        <span className="block text-sm font-medium">{title}</span>
+        <span className="block text-xs text-muted-foreground">{detail}</span>
+      </span>
+      {active && <Check className="h-4 w-4 text-primary" />}
+    </button>
+  );
+}
+
+function Field({ label, value, onChange, placeholder }: any) {
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <Input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
+    </div>
+  );
+}
+
+function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className={`flex justify-between ${strong ? "font-semibold" : "text-muted-foreground"}`}>
+      <span>{label}</span>
+      <span>{value}</span>
+    </div>
+  );
+}

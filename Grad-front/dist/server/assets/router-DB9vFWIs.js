@@ -11,12 +11,12 @@ import { useEffect, useRef, useState } from "react";
 import { HeadContent, Link, Outlet, Scripts, createFileRoute, createRootRouteWithContext, createRouter, lazyRouteComponent, useRouter } from "@tanstack/react-router";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ArrowLeft, BookOpen, Check, CreditCard, Heart, KeyRound, Loader2, Lock, LogIn, Mail, MailCheck, Minus, Plus, RotateCcw, Send, ShieldCheck, ShoppingBasket, Trash2, Truck, UserPlus, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, CreditCard, Heart, KeyRound, Loader2, Lock, LogIn, Mail, MailCheck, Minus, Plus, RotateCcw, Send, ShieldCheck, ShoppingBasket, Sparkles, Trash2, Truck, UserPlus, X } from "lucide-react";
 import { cva } from "class-variance-authority";
 import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { Toaster, toast } from "sonner";
 //#region src/styles.css?url
-var styles_default = "/assets/styles-BxPimiDB.css";
+var styles_default = "/assets/styles-D0x_BA7w.css";
 //#endregion
 //#region src/components/ui/sheet.tsx
 var Sheet = SheetPrimitive.Root;
@@ -447,7 +447,7 @@ function Payment({ payment, setPayment, cardholder, setCardholder, card, setCard
 						label: "Cardholder name",
 						value: cardholder,
 						onChange: setCardholder,
-						placeholder: "Roaa Alaa"
+						placeholder: "Name on card"
 					}),
 					/* @__PURE__ */ jsx(Field$1, {
 						label: "Card number",
@@ -705,6 +705,111 @@ function Row({ label, value, strong }) {
 }
 //#endregion
 //#region src/components/turath/ChatWidget.tsx
+function renderInline(text) {
+	const parts = [];
+	const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
+	let lastIdx = 0;
+	let match;
+	while ((match = regex.exec(text)) !== null) {
+		if (match.index > lastIdx) parts.push(text.substring(lastIdx, match.index));
+		const token = match[0];
+		if (token.startsWith("**") && token.endsWith("**")) parts.push(/* @__PURE__ */ jsx("strong", {
+			className: "font-semibold text-foreground",
+			children: token.slice(2, -2)
+		}, match.index));
+		else if (token.startsWith("*") && token.endsWith("*")) parts.push(/* @__PURE__ */ jsx("em", {
+			className: "italic text-muted-foreground font-serif",
+			children: token.slice(1, -1)
+		}, match.index));
+		else if (token.startsWith("`") && token.endsWith("`")) parts.push(/* @__PURE__ */ jsx("code", {
+			className: "rounded bg-muted px-1 py-0.5 font-mono text-xs text-primary",
+			children: token.slice(1, -1)
+		}, match.index));
+		lastIdx = regex.lastIndex;
+	}
+	if (lastIdx < text.length) parts.push(text.substring(lastIdx));
+	return parts.length > 0 ? parts : text;
+}
+function FormattedBotMessage({ text }) {
+	const lines = text.split("\n");
+	const blocks = [];
+	let tableRows = [];
+	let inTable = false;
+	const flushTable = (key) => {
+		if (tableRows.length === 0) return;
+		const validRows = tableRows.filter((row) => !row.every((cell) => /^[-:| ]+$/.test(cell)));
+		if (validRows.length > 0) {
+			const [header, ...data] = validRows;
+			blocks.push(/* @__PURE__ */ jsx("div", {
+				className: "my-2 space-y-2",
+				children: data.length > 0 ? data.map((row, rIdx) => {
+					const cells = row.filter((c) => c.trim().length > 0);
+					return /* @__PURE__ */ jsxs("div", {
+						className: "rounded-lg border border-border/70 bg-background/80 p-2.5 shadow-xs text-xs space-y-1",
+						children: [/* @__PURE__ */ jsxs("div", {
+							className: "flex items-start gap-1.5 font-medium text-foreground",
+							children: [/* @__PURE__ */ jsx(Sparkles, { className: "h-3.5 w-3.5 text-primary shrink-0 mt-0.5" }), /* @__PURE__ */ jsx("div", { children: renderInline(cells.slice(0, 2).join(" — ")) })]
+						}), cells.length > 2 && /* @__PURE__ */ jsx("div", {
+							className: "text-muted-foreground pl-5 text-[11px] leading-relaxed",
+							children: renderInline(cells.slice(2).join(" • "))
+						})]
+					}, `tbl-${rIdx}`);
+				}) : /* @__PURE__ */ jsx("div", {
+					className: "rounded-lg border border-border bg-background p-2 text-xs",
+					children: header.join(" | ")
+				})
+			}, key));
+		}
+		tableRows = [];
+		inTable = false;
+	};
+	for (let i = 0; i < lines.length; i++) {
+		const rawLine = lines[i].trim();
+		if (rawLine.startsWith("|") && rawLine.endsWith("|")) {
+			inTable = true;
+			const cells = rawLine.slice(1, -1).split("|").map((c) => c.trim());
+			tableRows.push(cells);
+			continue;
+		} else if (inTable) flushTable(`tbl-flush-${i}`);
+		if (!rawLine) {
+			blocks.push(/* @__PURE__ */ jsx("div", { className: "h-1.5" }, `empty-${i}`));
+			continue;
+		}
+		if (rawLine.startsWith("### ")) blocks.push(/* @__PURE__ */ jsx("h4", {
+			className: "font-semibold text-xs tracking-wide text-foreground mt-2 mb-1",
+			children: renderInline(rawLine.replace(/^###\s+/, ""))
+		}, `h3-${i}`));
+		else if (rawLine.startsWith("## ")) blocks.push(/* @__PURE__ */ jsx("h3", {
+			className: "font-semibold text-sm tracking-wide text-foreground mt-2.5 mb-1",
+			children: renderInline(rawLine.replace(/^##\s+/, ""))
+		}, `h2-${i}`));
+		else if (rawLine.startsWith("# ")) blocks.push(/* @__PURE__ */ jsx("h2", {
+			className: "font-bold text-sm tracking-wide text-foreground mt-3 mb-1",
+			children: renderInline(rawLine.replace(/^#\s+/, ""))
+		}, `h1-${i}`));
+		else if (/^(\*|-|•|\d+\.)\s+/.test(rawLine)) {
+			const content = rawLine.replace(/^(\*|-|•|\d+\.)\s+/, "");
+			blocks.push(/* @__PURE__ */ jsxs("div", {
+				className: "flex items-start gap-1.5 text-xs leading-relaxed my-0.5 pl-1",
+				children: [/* @__PURE__ */ jsx("span", {
+					className: "text-primary font-bold select-none",
+					children: "•"
+				}), /* @__PURE__ */ jsx("span", {
+					className: "flex-1",
+					children: renderInline(content)
+				})]
+			}, `li-${i}`));
+		} else blocks.push(/* @__PURE__ */ jsx("p", {
+			className: "text-xs leading-relaxed",
+			children: renderInline(rawLine)
+		}, `p-${i}`));
+	}
+	if (inTable) flushTable("tbl-flush-end");
+	return /* @__PURE__ */ jsx("div", {
+		className: "space-y-1",
+		children: blocks
+	});
+}
 function ChatWidget() {
 	const { isAuthenticated, activeUser } = useTurath();
 	const [open, setOpen] = useState(false);
@@ -769,47 +874,47 @@ function ChatWidget() {
 		type: "button",
 		"aria-label": open ? "Close Jalis" : "Open Jalis book assistant",
 		onClick: () => setOpen((o) => !o),
-		className: "fixed bottom-5 right-5 z-50 h-14 w-14 rounded-full p-0 shadow-lg",
+		className: "fixed bottom-5 right-5 z-50 h-14 w-14 rounded-full p-0 shadow-lg cursor-pointer",
 		children: open ? /* @__PURE__ */ jsx(X, { className: "h-6 w-6" }) : /* @__PURE__ */ jsx(BookOpen, { className: "h-6 w-6" })
 	}), open && /* @__PURE__ */ jsxs("div", {
-		className: "fixed bottom-24 right-5 z-50 flex h-[28rem] w-[22rem] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-xl border bg-card shadow-2xl",
+		className: "fixed bottom-24 right-5 z-50 flex h-[32rem] w-[24rem] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-xl border bg-card shadow-2xl",
 		children: [
 			/* @__PURE__ */ jsxs("div", {
 				className: "border-b bg-accent/40 px-4 py-3",
 				children: [/* @__PURE__ */ jsxs("div", {
 					className: "flex items-center gap-2",
 					children: [/* @__PURE__ */ jsx(BookOpen, { className: "h-4 w-4 text-primary" }), /* @__PURE__ */ jsx("p", {
-						className: "font-display text-sm tracking-wide",
+						className: "font-display text-sm tracking-wide font-medium",
 						children: "Jalis — Book Companion"
 					})]
 				}), /* @__PURE__ */ jsx("p", {
 					className: "text-xs text-muted-foreground",
-					children: isAuthenticated ? `Curated picks for ${activeUser.name}` : "Discover your next read"
+					children: isAuthenticated && activeUser ? `Curated picks for ${activeUser.name}` : "Discover your next read"
 				})]
 			}),
 			/* @__PURE__ */ jsxs("div", {
 				ref: scrollRef,
-				className: "flex-1 space-y-2 overflow-y-auto px-3 py-3",
+				className: "flex-1 space-y-3 overflow-y-auto px-3.5 py-3",
 				children: [messages.map((m) => /* @__PURE__ */ jsx("div", {
-					className: `max-w-[85%] whitespace-pre-wrap rounded-lg px-3 py-2 text-sm ${m.from === "bot" ? "bg-muted text-foreground" : "ml-auto bg-primary text-primary-foreground"}`,
-					children: m.text
+					className: `max-w-[90%] rounded-lg px-3.5 py-2.5 text-sm ${m.from === "bot" ? "bg-muted/80 text-foreground border border-border/40 shadow-2xs" : "ml-auto bg-primary text-primary-foreground shadow-2xs whitespace-pre-wrap"}`,
+					children: m.from === "bot" ? /* @__PURE__ */ jsx(FormattedBotMessage, { text: m.text }) : m.text
 				}, m.id)), loading && /* @__PURE__ */ jsxs("div", {
-					className: "flex items-center gap-2 bg-muted text-muted-foreground max-w-[85%] rounded-lg px-3 py-2 text-xs",
-					children: [/* @__PURE__ */ jsx(Loader2, { className: "h-3.5 w-3.5 animate-spin" }), /* @__PURE__ */ jsx("span", { children: "Jalis is searching the catalog..." })]
+					className: "flex items-center gap-2 bg-muted/80 text-muted-foreground max-w-[85%] rounded-lg px-3 py-2 text-xs border border-border/40",
+					children: [/* @__PURE__ */ jsx(Loader2, { className: "h-3.5 w-3.5 animate-spin text-primary" }), /* @__PURE__ */ jsx("span", { children: "Jalis is searching the catalog..." })]
 				})]
 			}),
 			/* @__PURE__ */ jsxs("div", {
-				className: "flex items-center gap-2 border-t p-2",
+				className: "flex items-center gap-2 border-t p-2.5 bg-background",
 				children: [/* @__PURE__ */ jsx(Input, {
 					value: input,
 					onChange: (e) => setInput(e.target.value),
 					onKeyDown: (e) => e.key === "Enter" && send(),
-					placeholder: "Ask Jalis for a book recommendation...",
+					placeholder: "Ask Jalis for recommendations...",
 					disabled: loading,
-					className: "h-9"
+					className: "h-9 text-xs"
 				}), /* @__PURE__ */ jsx(Button, {
 					size: "icon",
-					className: "h-9 w-9 shrink-0",
+					className: "h-9 w-9 shrink-0 cursor-pointer",
 					onClick: send,
 					disabled: loading || !input.trim(),
 					"aria-label": "Send message",
@@ -1795,8 +1900,12 @@ var Route$5 = createRootRouteWithContext()({
 			},
 			{
 				rel: "icon",
-				type: "image/png",
-				href: "/Grad-front/dist/client/icon.png"
+				type: "image/x-icon",
+				href: "/love-book.ico"
+			},
+			{
+				rel: "shortcut icon",
+				href: "/love-book.ico"
 			}
 		]
 	}),
