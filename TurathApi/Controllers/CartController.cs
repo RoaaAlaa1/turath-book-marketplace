@@ -20,10 +20,9 @@ namespace TurathApi.Controllers
             _context = context;
         }
 
-        // Returns the cart for the authenticated user
-        [HttpGet("{customerId}")]
+        [HttpGet]
         [Authorize]
-        public async Task<IActionResult> GetCart(string customerId)
+        public async Task<IActionResult> GetCart()
         {
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(customerId))
@@ -43,7 +42,6 @@ namespace TurathApi.Controllers
             return Ok(cart);
         }
 
-        /// Adds a product to the authenticated user's cart.
         [HttpPost("add")]
         public async Task<IActionResult> AddToCart([FromBody] AddToCartDto dto)
         {
@@ -86,7 +84,6 @@ namespace TurathApi.Controllers
             return Ok(new { message = "Product added to cart successfully." });
         }
 
-        /// Updates item quantity in the authenticated user's cart.
         [HttpPut("update-item")]
         public async Task<IActionResult> UpdateCartItem([FromBody] UpdateCartItemDto dto)
         {
@@ -125,8 +122,6 @@ namespace TurathApi.Controllers
             return Ok(new { message = "Cart updated successfully." });
         }
 
-
-        /// Removes an item from the authenticated user's cart.
         [HttpDelete("remove-item")]
         public async Task<IActionResult> RemoveCartItem([FromBody] RemoveCartItemDto dto)
         {
@@ -157,10 +152,8 @@ namespace TurathApi.Controllers
             return Ok(new { message = "Product removed from cart successfully." });
         }
 
-
-        /// Creates an order from the current cart items for the authenticated user.
         [HttpPost("checkout")]
-        public async Task<IActionResult> Checkout([FromBody] CheckoutDto dto)        
+        public async Task<IActionResult> Checkout([FromBody] CheckoutDto dto)
         {
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(customerId))
