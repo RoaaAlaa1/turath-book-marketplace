@@ -39,7 +39,7 @@ function Orders() {
   useEffect(() => {
     if (!userId) return;
 
-    apiFetch<any[]>(`/api/Orders/${userId}`)
+    apiFetch<any[]>(`/api/Orders`)
       .then((data) => {
         if (!Array.isArray(data)) return;
         setApiOrders(

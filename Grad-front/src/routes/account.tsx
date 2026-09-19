@@ -18,13 +18,28 @@ export const Route = createFileRoute("/account")({
 
 function Account() {
   const { activeUser, isAuthenticated, updateProfile } = useTurath();
-  const isSeller = activeUser.role === "seller";
-  const sellerRequestPending = activeUser.sellerState === "pending";
-  const displayName = isAuthenticated ? activeUser.name : "Name";
-  const displayEmail = isAuthenticated ? activeUser.email : "name@example.com";
+  const user = activeUser ?? {
+    id: "",
+    name: "Guest Reader",
+    email: "guest@example.com",
+    role: "customer" as const,
+    joined: "Today",
+    status: "active" as const,
+    phone: undefined,
+    address: undefined,
+    storeName: undefined,
+    genres: [],
+    bio: undefined,
+    sellerState: undefined,
+  };
+
+  const isSeller = user.role === "seller";
+  const sellerRequestPending = user.sellerState === "pending";
+  const displayName = isAuthenticated ? user.name : "Guest Reader";
+  const displayEmail = isAuthenticated ? user.email : "guest@example.com";
 
   const handleSellerRequest = async () => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !activeUser) {
       toast.error("Sign in first to request seller access.");
       return;
     }
@@ -55,30 +70,44 @@ function Account() {
         <BranchDivider className="mt-4" />
       </header>
 
+      {!isAuthenticated && (
+        <div className="mt-6 rounded-lg border border-primary/20 bg-accent/30 p-4 text-center">
+          <p className="text-sm font-medium">You are currently exploring as a guest.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Sign in to view your orders, wishlist, and profile details.</p>
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("turath:open-auth"))}
+            className="mt-3 inline-flex items-center rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground transition hover:opacity-90"
+          >
+            Sign In / Create Account
+          </button>
+        </div>
+      )}
+
       <section className="mt-8 rounded-lg border bg-card p-6">
         <div className="flex flex-wrap items-start gap-4">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent font-display text-2xl text-accent-foreground">
-            {activeUser.name.charAt(0).toUpperCase()}
+            {displayName.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="font-serif text-2xl">{displayName}</h2>
               <Badge variant="outline">{isSeller ? "Seller" : "Customer"}</Badge>
-              {!isAuthenticated && <Badge className="bg-amber-gold/25 text-foreground">Demo profile</Badge>}
+              {!isAuthenticated && <Badge className="bg-amber-gold/25 text-foreground">Guest profile</Badge>}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">{displayEmail}</p>
           </div>
         </div>
 
         <div className="mt-8 grid gap-4 border-t pt-6 sm:grid-cols-2">
-          <Detail icon={<Phone className="h-4 w-4" />} label="Phone" value={activeUser.phone ?? "Not added yet"} />
-          <Detail icon={<MapPin className="h-4 w-4" />} label={isSeller ? "Store location" : "Default address"} value={activeUser.address ?? "Not added yet"} />
+          <Detail icon={<Phone className="h-4 w-4" />} label="Phone" value={user.phone ?? "Not added yet"} />
+          <Detail icon={<MapPin className="h-4 w-4" />} label={isSeller ? "Store location" : "Default address"} value={user.address ?? "Not added yet"} />
           {isSeller ? (
-            <Detail icon={<Store className="h-4 w-4" />} label="Store name" value={activeUser.storeName ?? activeUser.name} />
+            <Detail icon={<Store className="h-4 w-4" />} label="Store name" value={user.storeName ?? user.name} />
           ) : (
-            <Detail icon={<BookOpen className="h-4 w-4" />} label="Preferred genres" value={activeUser.genres?.join(", ") || "Not added yet"} />
+            <Detail icon={<BookOpen className="h-4 w-4" />} label="Preferred genres" value={user.genres?.join(", ") || "Not added yet"} />
           )}
-          <Detail icon={<UserRound className="h-4 w-4" />} label="Member since" value={activeUser.joined} />
+          <Detail icon={<UserRound className="h-4 w-4" />} label="Member since" value={user.joined} />
         </div>
 
         {isAuthenticated && !isSeller && (
@@ -100,8 +129,8 @@ function Account() {
         {isSeller && (
           <div className="mt-6 rounded-md bg-muted p-4">
             <p className="text-xs tracking-wide text-muted-foreground uppercase">Store bio</p>
-            <p className="mt-2 text-sm leading-relaxed">{activeUser.bio || "No store bio added yet."}</p>
-            {activeUser.sellerState && <p className="mt-3 text-xs text-muted-foreground">Seller status: {activeUser.sellerState}</p>}
+            <p className="mt-2 text-sm leading-relaxed">{user.bio || "No store bio added yet."}</p>
+            {user.sellerState && <p className="mt-3 text-xs text-muted-foreground">Seller status: {user.sellerState}</p>}
           </div>
         )}
       </section>

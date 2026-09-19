@@ -60,13 +60,16 @@ function SellerPortal() {
   const [editing, setEditing] = useState<Book | null>(null);
   const isPendingSeller = activeUser?.sellerState === "pending";
 
+  const sellerId = activeUser?.id ?? "";
+  const sellerName = activeUser?.name ?? "Seller";
+
   const myBooks = useMemo(
-    () => books.filter((b) => b.sellerId === activeUser.id),
-    [books, activeUser.id],
+    () => (sellerId ? books.filter((b) => b.sellerId === sellerId) : []),
+    [books, sellerId],
   );
   const myOrders = useMemo(
-    () => orders.filter((o) => o.lines.some((l) => l.sellerId === activeUser.id)),
-    [orders, activeUser.id],
+    () => (sellerId ? orders.filter((o) => o.lines.some((l) => l.sellerId === sellerId)) : []),
+    [orders, sellerId],
   );
   const revenue = myOrders
     .filter((o) => o.status !== "Cancelled")
@@ -74,7 +77,7 @@ function SellerPortal() {
       (s, o) =>
         s +
         o.lines
-          .filter((l) => l.sellerId === activeUser.id)
+          .filter((l) => l.sellerId === sellerId)
           .reduce((n, l) => n + l.price * l.quantity, 0),
       0,
     );
@@ -88,7 +91,7 @@ function SellerPortal() {
           <p className="font-arabic-display mt-2 text-xl text-primary">حسابك قيد المراجعة</p>
           <BranchDivider className="my-6" />
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Thank you, {activeUser.name}. A steward is reviewing your shop application. Listing
+            Thank you, {sellerName}. A steward is reviewing your shop application. Listing
             books, editing inventory and fulfilling orders unlock once you are approved.
           </p>
           <Button className="mt-6" disabled>
@@ -113,7 +116,7 @@ function SellerPortal() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       <header className="text-center">
-        <h1 className="font-display text-3xl tracking-wide">{activeUser.name}</h1>
+        <h1 className="font-display text-3xl tracking-wide">{sellerName}</h1>
         <p className="font-arabic-display mt-1 text-xl text-primary">لوحة البائع</p>
         <BranchDivider className="mt-4" />
       </header>
@@ -127,7 +130,7 @@ function SellerPortal() {
       <section className="mt-10">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-display text-xl tracking-wide">Inventory</h2>
-          <Button onClick={() => setEditing(blankBook(activeUser.id, categories[0] ?? "Fiction"))}>
+          <Button onClick={() => setEditing(blankBook(sellerId, categories[0] ?? "Fiction"))}>
             <Plus className="h-4 w-4" /> Add book
           </Button>
         </div>

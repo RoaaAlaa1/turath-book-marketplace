@@ -27,13 +27,13 @@ export function BookDialog({
   if (!book) return null;
   const wished = wishlist.includes(book.id);
   const purchased = orders.some(
-    (o) => o.customerId === activeUser.id && o.lines.some((l) => l.bookId === book.id),
+    (o) => activeUser?.id && o.customerId === activeUser.id && o.lines.some((l) => l.bookId === book.id),
   );
   const canReview = role === "customer" && purchased;
 
   const submitReview = () => {
     if (comment.trim().length < 4) return;
-    addReview(book.id, { author: activeUser.name, rating, comment: comment.trim(), verified: true });
+    addReview(book.id, { author: activeUser?.name ?? "Reader", rating, comment: comment.trim(), verified: true });
     setComment("");
     toast.success("Review published");
   };

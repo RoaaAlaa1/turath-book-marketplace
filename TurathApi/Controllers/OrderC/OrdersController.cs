@@ -7,6 +7,18 @@ using TurathApi.Models;
 
 namespace TurathApi.Controllers.Orders
 {
+    public class CreateOrderItemRequest
+    {
+        public int ProductId { get; set; }
+        public int Quantity { get; set; }
+    }
+
+    public class CreateOrderRequest
+    {
+        public string? ShippingAddress { get; set; }
+        public List<CreateOrderItemRequest> Items { get; set; } = new();
+    }
+
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
@@ -19,9 +31,13 @@ namespace TurathApi.Controllers.Orders
             _context = context;
         }
 
+        // GET /api/Orders
+        // GET /api/Orders/my-orders
         // GET /api/Orders/{customerId}
+        [HttpGet]
+        [HttpGet("my-orders")]
         [HttpGet("{customerId}")]
-        public async Task<IActionResult> GetMyOrders(string customerId)
+        public async Task<IActionResult> GetMyOrders(string? customerId = null)
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(currentUserId))
@@ -29,7 +45,11 @@ namespace TurathApi.Controllers.Orders
                 return Unauthorized(new { message = "Invalid user identifier." });
             }
 
-            if (customerId != currentUserId && !User.IsInRole("Admin"))
+            var targetUserId = string.IsNullOrEmpty(customerId) || customerId == "my-orders"
+                ? currentUserId
+                : customerId;
+
+            if (targetUserId != currentUserId && !User.IsInRole("Admin"))
             {
                 return Forbid();
             }
@@ -37,7 +57,7 @@ namespace TurathApi.Controllers.Orders
             var orders = await _context.Orders
                 .Include(o => o.OrderItems)
                 .AsNoTracking()
-                .Where(o => o.CustomerId == customerId)
+                .Where(o => o.CustomerId == targetUserId)
                 .OrderByDescending(o => o.CreatedAt)
                 .Select(o => new
                 {
@@ -45,21 +65,112 @@ namespace TurathApi.Controllers.Orders
                     customerId = o.CustomerId,
                     status = o.Status,
                     totalPrice = o.Total,
+                    total = o.Total,
                     createdAt = o.CreatedAt,
-                    items = o.OrderItems.Select(oi => new
+                    orderItems = o.OrderItems.Select(oi => new
                     {
                         id = oi.Id,
                         productId = oi.ProductId,
+                        bookId = oi.ProductId,
                         title = _context.Books.Where(b => b.Id == oi.ProductId).Select(b => b.Title).FirstOrDefault() ?? "Book",
                         author = _context.Books.Where(b => b.Id == oi.ProductId).Select(b => b.Author).FirstOrDefault() ?? "",
                         imageUrl = _context.Books.Where(b => b.Id == oi.ProductId).Select(b => b.ImageUrl).FirstOrDefault() ?? "",
                         unitPrice = oi.Price,
+                        price = oi.Price,
+                        quantity = oi.Quantity
+                    }),
+                    items = o.OrderItems.Select(oi => new
+                    {
+                        id = oi.Id,
+                        productId = oi.ProductId,
+                        bookId = oi.ProductId,
+                        title = _context.Books.Where(b => b.Id == oi.ProductId).Select(b => b.Title).FirstOrDefault() ?? "Book",
+                        author = _context.Books.Where(b => b.Id == oi.ProductId).Select(b => b.Author).FirstOrDefault() ?? "",
+                        imageUrl = _context.Books.Where(b => b.Id == oi.ProductId).Select(b => b.ImageUrl).FirstOrDefault() ?? "",
+                        unitPrice = oi.Price,
+                        price = oi.Price,
                         quantity = oi.Quantity
                     })
                 })
                 .ToListAsync();
 
             return Ok(orders);
+        }
+
+        // POST /api/Orders
+        [HttpPost]
+        public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequest request)
+        {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(currentUserId))
+            {
+                return Unauthorized(new { message = "Invalid user identifier." });
+            }
+
+            if (request == null || request.Items == null || !request.Items.Any())
+            {
+                return BadRequest(new { message = "Order must contain at least one item." });
+            }
+
+            var orderItems = new List<OrderItem>();
+            decimal totalAmount = 0m;
+
+            foreach (var item in request.Items)
+            {
+                var book = await _context.Books.FirstOrDefaultAsync(b => b.Id == item.ProductId);
+                if (book == null)
+                {
+                    return BadRequest(new { message = $"Book #{item.ProductId} not found." });
+                }
+
+                if (book.Quantity < item.Quantity)
+                {
+                    return BadRequest(new { message = $"Only {book.Quantity} copies of '{book.Title}' are available." });
+                }
+
+                var lineTotal = item.Quantity * book.Price;
+                totalAmount += lineTotal;
+
+                orderItems.Add(new OrderItem
+                {
+                    ProductId = item.ProductId,
+                    Quantity = item.Quantity,
+                    Price = book.Price
+                });
+
+                book.Quantity -= item.Quantity;
+            }
+
+            var order = new Order
+            {
+                CustomerId = currentUserId,
+                Total = totalAmount,
+                Status = "Pending",
+                CreatedAt = DateTime.UtcNow,
+                OrderItems = orderItems
+            };
+
+            _context.Orders.Add(order);
+
+            // Also clear cart in DB if present
+            var userCart = await _context.Carts
+                .Include(c => c.CartItems)
+                .FirstOrDefaultAsync(c => c.CustomerId == currentUserId);
+            if (userCart != null && userCart.CartItems.Any())
+            {
+                _context.CartItems.RemoveRange(userCart.CartItems);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Order placed successfully.",
+                orderId = order.Id,
+                id = order.Id,
+                total = totalAmount,
+                totalPrice = totalAmount
+            });
         }
 
         // GET /api/Orders/details/{id:guid}

@@ -212,7 +212,7 @@ export function TurathProvider({ children }: { children: ReactNode }) {
     if (!userId) return;
 
     try {
-      const data = await apiFetch<any[]>(`/api/Orders/${userId}`);
+      const data = await apiFetch<any[]>(`/api/Orders`);
       if (Array.isArray(data)) {
         const mappedOrders: Order[] = data.map((o: any) => ({
           id: String(o.id ?? o.orderId),
@@ -236,9 +236,15 @@ export function TurathProvider({ children }: { children: ReactNode }) {
         }));
 
         patch({ orders: mappedOrders });
+        localStorage.setItem(`turath-orders-${userId}`, JSON.stringify(mappedOrders));
       }
     } catch {
-      // Retain existing local orders if network fetch fails
+      const saved = localStorage.getItem(`turath-orders-${userId}`);
+      if (saved) {
+        try {
+          patch({ orders: JSON.parse(saved) });
+        } catch {}
+      }
     }
   }, [state.authUserId, patch]);
 
@@ -472,17 +478,28 @@ export function TurathProvider({ children }: { children: ReactNode }) {
           .filter(Boolean) as Order["lines"];
         if (!lines.length) return null;
 
-        const userId = currentUserId();
+        const userId = currentUserId() || authUserId;
 
         if (userId) {
           try {
-            const result = await apiFetch<{ id?: string; orderId?: string; total?: number; totalPrice?: number }>(
-              `/api/Cart/checkout`,
-              {
+            let result: any = null;
+            try {
+              result = await apiFetch<any>(`/api/Orders`, {
+                method: "POST",
+                body: JSON.stringify({
+                  shippingAddress: address,
+                  items: lines.map((l) => ({
+                    productId: Number(l.bookId),
+                    quantity: l.quantity,
+                  })),
+                }),
+              });
+            } catch {
+              result = await apiFetch<any>(`/api/Cart/checkout`, {
                 method: "POST",
                 body: JSON.stringify({ customerId: userId }),
-              },
-            );
+              });
+            }
 
             const realId = String(result?.id ?? result?.orderId ?? "");
             const realTotal = Number(result?.total ?? result?.totalPrice ?? 0);
@@ -501,12 +518,14 @@ export function TurathProvider({ children }: { children: ReactNode }) {
                 placedAt: new Date().toISOString().slice(0, 10),
                 address,
               };
-              patch({ orders: [order, ...orders], cart: [] });
-              void syncOrdersFromServer(); // refresh with full server-side details
+              const nextOrders = [order, ...orders.filter((o) => o.id !== realId)];
+              patch({ orders: nextOrders, cart: [] });
+              localStorage.setItem(`turath-orders-${userId}`, JSON.stringify(nextOrders));
+              void syncOrdersFromServer();
               return realId;
             }
           } catch {
-            // fall through to local mock order below if the real call fails
+            // fall through to local mock order below if server is unreachable
           }
         }
 
