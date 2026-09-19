@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace TurathApi.DTOs.Auth
 {
@@ -20,5 +20,7 @@ namespace TurathApi.DTOs.Auth
         [MinLength(8, ErrorMessage = "Password must be at least 8 characters long.")]
         [DataType(DataType.Password)]
         public string Password { get; set; } = string.Empty;
+
+        public string? PhoneNumber { get; set; }
     }
 }

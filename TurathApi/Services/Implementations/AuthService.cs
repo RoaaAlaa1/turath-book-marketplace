@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -38,6 +38,7 @@ namespace TurathApi.Services.Implementations
                 Email = dto.Email,
                 FirstName = dto.FirstName,
                 LastName = dto.LastName,
+                PhoneNumber = dto.PhoneNumber,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -57,6 +58,7 @@ namespace TurathApi.Services.Implementations
 
             // توليد الـ Token للمستخدم بعد التسجيل
             var token = await GenerateJwtTokenAsync(user);
+            var roles = (await _userManager.GetRolesAsync(user)).ToList();
 
             return new AuthResponseDto
             {
@@ -65,7 +67,11 @@ namespace TurathApi.Services.Implementations
                 Token = token.Token,
                 ExpiresOn = token.ExpiresOn,
                 Email = user.Email,
-                Username = user.UserName
+                Username = user.UserName,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                PhoneNumber = user.PhoneNumber,
+                Roles = roles
             };
         }
 
@@ -83,6 +89,7 @@ namespace TurathApi.Services.Implementations
             }
 
             var token = await GenerateJwtTokenAsync(user);
+            var roles = (await _userManager.GetRolesAsync(user)).ToList();
 
             return new AuthResponseDto
             {
@@ -91,7 +98,11 @@ namespace TurathApi.Services.Implementations
                 Token = token.Token,
                 ExpiresOn = token.ExpiresOn,
                 Email = user.Email,
-                Username = user.UserName
+                Username = user.UserName,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                PhoneNumber = user.PhoneNumber,
+                Roles = roles
             };
         }
 
@@ -105,7 +116,9 @@ namespace TurathApi.Services.Implementations
                 new Claim(ClaimTypes.Email, user.Email!),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim("firstName", user.FirstName),
-                new Claim("lastName", user.LastName)
+                new Claim("lastName", user.LastName),
+                new Claim("phoneNumber", user.PhoneNumber ?? ""),
+                new Claim(ClaimTypes.MobilePhone, user.PhoneNumber ?? "")
             };
 
             foreach (var role in userRoles)

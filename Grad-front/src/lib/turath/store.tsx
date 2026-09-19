@@ -303,11 +303,26 @@ export function TurathProvider({ children }: { children: ReactNode }) {
     const { books, users, orders, categories, cart, wishlist, role, authUserId } = state;
 
     const storedEmail = (typeof localStorage !== "undefined" ? localStorage.getItem("turath-email") : null) || undefined;
-    const activeUser: AppUser | null = authUserId
+    let matchedUser = authUserId
       ? users.find((u) => u.id === authUserId) ??
-        users.find((u) => storedEmail && u.email.toLowerCase() === storedEmail.toLowerCase()) ?? {
+        users.find((u) => storedEmail && u.email.toLowerCase() === storedEmail.toLowerCase())
+      : null;
+
+    if (!matchedUser && (authUserId || storedEmail)) {
+      try {
+        const cached =
+          (authUserId ? localStorage.getItem(`turath-profile-${authUserId}`) : null) ||
+          (storedEmail ? localStorage.getItem(`turath-profile-${storedEmail.toLowerCase()}`) : null);
+        if (cached) {
+          matchedUser = JSON.parse(cached);
+        }
+      } catch {}
+    }
+
+    const activeUser: AppUser | null = authUserId
+      ? matchedUser ?? {
           id: authUserId,
-          name: (storedEmail ? storedEmail.split("@")[0] : "Turath Reader"),
+          name: storedEmail ? storedEmail.split("@")[0] : "Turath Reader",
           email: storedEmail ?? "reader@turath.com",
           role: decodeTokenRole() ?? role ?? "customer",
           status: "active",
@@ -344,6 +359,13 @@ export function TurathProvider({ children }: { children: ReactNode }) {
         const authenticatedId = currentUserId() ?? created.id;
         const authenticatedUser = { ...created, id: authenticatedId, role: realRole };
         localStorage.setItem("turath-email", user.email);
+        try {
+          localStorage.setItem(`turath-profile-${user.email.toLowerCase()}`, JSON.stringify(authenticatedUser));
+          if (authenticatedId) {
+            localStorage.setItem(`turath-profile-${authenticatedId}`, JSON.stringify(authenticatedUser));
+          }
+        } catch {}
+
         patch({
           users: [authenticatedUser, ...users.filter((existing) => existing.email.toLowerCase() !== user.email.toLowerCase())],
           authUserId: authenticatedId,
@@ -356,14 +378,39 @@ export function TurathProvider({ children }: { children: ReactNode }) {
       },
 
       signIn: (email) => {
-        const user = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
+        const normalized = email.trim().toLowerCase();
+        let user = users.find((u) => u.email.toLowerCase() === normalized);
+        if (!user) {
+          try {
+            const cached = localStorage.getItem(`turath-profile-${normalized}`);
+            if (cached) user = JSON.parse(cached);
+          } catch {}
+        }
         if (user && user.status === "suspended") return false;
-        const realRole = decodeTokenRole() ?? "customer";
+        const realRole = decodeTokenRole() ?? user?.role ?? "customer";
         const authenticatedId = currentUserId() ?? user?.id ?? `u-${Date.now()}`;
         localStorage.setItem("turath-email", email.trim());
-        const updatedUsers = user
-          ? users.map((existing) => existing.id === user.id ? { ...existing, id: authenticatedId, role: realRole } : existing)
-          : [{ id: authenticatedId, name: email.trim().split("@")[0], email: email.trim(), role: realRole, status: "active" as const, joined: new Date().toISOString().slice(0, 10) }, ...users];
+
+        const updatedUser: AppUser = user
+          ? { ...user, id: authenticatedId, role: realRole }
+          : {
+              id: authenticatedId,
+              name: email.trim().split("@")[0],
+              email: email.trim(),
+              role: realRole,
+              status: "active" as const,
+              joined: new Date().toISOString().slice(0, 10),
+            };
+
+        try {
+          localStorage.setItem(`turath-profile-${normalized}`, JSON.stringify(updatedUser));
+          localStorage.setItem(`turath-profile-${authenticatedId}`, JSON.stringify(updatedUser));
+        } catch {}
+
+        const updatedUsers = [
+          updatedUser,
+          ...users.filter((existing) => existing.email.toLowerCase() !== normalized && existing.id !== authenticatedId),
+        ];
 
         patch({
           users: updatedUsers,
@@ -376,8 +423,22 @@ export function TurathProvider({ children }: { children: ReactNode }) {
         return true;
       },
 
-      updateProfile: (userId, profile) =>
-        patch({ users: users.map((u) => (u.id === userId ? { ...u, ...profile } : u)) }),
+      updateProfile: (userId, profile) => {
+        const updatedUsers = users.map((u) => {
+          if (u.id === userId || (storedEmail && u.email.toLowerCase() === storedEmail.toLowerCase())) {
+            const updated = { ...u, ...profile };
+            try {
+              if (updated.email) {
+                localStorage.setItem(`turath-profile-${updated.email.toLowerCase()}`, JSON.stringify(updated));
+              }
+              localStorage.setItem(`turath-profile-${userId}`, JSON.stringify(updated));
+            } catch {}
+            return updated;
+          }
+          return u;
+        });
+        patch({ users: updatedUsers });
+      },
       resetAll: () => {
         localStorage.removeItem(STORAGE_KEY);
         localStorage.removeItem("token");

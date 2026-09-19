@@ -1,7 +1,21 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { UserRound, MapPin, Phone, BookOpen, Store } from "lucide-react";
+import { UserRound, MapPin, Phone, BookOpen, Store, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { BranchDivider } from "@/components/turath/Ornaments";
 import { useTurath } from "@/lib/turath/store";
 import { apiFetch } from "@/lib/turath/api";
@@ -18,6 +32,8 @@ export const Route = createFileRoute("/account")({
 
 function Account() {
   const { activeUser, isAuthenticated, updateProfile } = useTurath();
+  const [editOpen, setEditOpen] = useState(false);
+
   const user = activeUser ?? {
     id: "",
     name: "Guest Reader",
@@ -33,10 +49,42 @@ function Account() {
     sellerState: undefined,
   };
 
+  const [editName, setEditName] = useState(user.name);
+  const [editPhone, setEditPhone] = useState(user.phone ?? "");
+  const [editAddress, setEditAddress] = useState(user.address ?? "");
+  const [editGenres, setEditGenres] = useState(user.genres?.join(", ") ?? "");
+  const [editStoreName, setEditStoreName] = useState(user.storeName ?? "");
+  const [editBio, setEditBio] = useState(user.bio ?? "");
+
   const isSeller = user.role === "seller";
   const sellerRequestPending = user.sellerState === "pending";
   const displayName = isAuthenticated ? user.name : "Guest Reader";
   const displayEmail = isAuthenticated ? user.email : "guest@example.com";
+
+  const openEditModal = () => {
+    setEditName(user.name);
+    setEditPhone(user.phone ?? "");
+    setEditAddress(user.address ?? "");
+    setEditGenres(user.genres?.join(", ") ?? "");
+    setEditStoreName(user.storeName ?? "");
+    setEditBio(user.bio ?? "");
+    setEditOpen(true);
+  };
+
+  const handleSaveProfile = () => {
+    if (!isAuthenticated || !activeUser) return;
+
+    updateProfile(activeUser.id, {
+      name: editName.trim() || activeUser.name,
+      phone: editPhone.trim() || undefined,
+      address: editAddress.trim() || undefined,
+      genres: editGenres.split(",").map((g) => g.trim()).filter(Boolean),
+      ...(isSeller ? { storeName: editStoreName.trim() || undefined, bio: editBio.trim() || undefined } : {}),
+    });
+
+    setEditOpen(false);
+    toast.success("Account details saved successfully.");
+  };
 
   const handleSellerRequest = async () => {
     if (!isAuthenticated || !activeUser) {
@@ -85,18 +133,74 @@ function Account() {
       )}
 
       <section className="mt-8 rounded-lg border bg-card p-6">
-        <div className="flex flex-wrap items-start gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent font-display text-2xl text-accent-foreground">
-            {displayName.charAt(0).toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="font-serif text-2xl">{displayName}</h2>
-              <Badge variant="outline">{isSeller ? "Seller" : "Customer"}</Badge>
-              {!isAuthenticated && <Badge className="bg-amber-gold/25 text-foreground">Guest profile</Badge>}
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-wrap items-start gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent font-display text-2xl text-accent-foreground">
+              {displayName.charAt(0).toUpperCase()}
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">{displayEmail}</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-serif text-2xl">{displayName}</h2>
+                <Badge variant="outline">{isSeller ? "Seller" : "Customer"}</Badge>
+                {!isAuthenticated && <Badge className="bg-amber-gold/25 text-foreground">Guest profile</Badge>}
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">{displayEmail}</p>
+            </div>
           </div>
+
+          {isAuthenticated && (
+            <Dialog open={editOpen} onOpenChange={setEditOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" onClick={openEditModal} className="gap-1.5">
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit Profile
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Edit Profile Details</DialogTitle>
+                  <DialogDescription>
+                    Update your contact number, delivery address, and preferences.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-3.5 py-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input id="name" value={editName} onChange={(e) => setEditName(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input id="phone" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="e.g. 01012345678" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="address">{isSeller ? "Store Location" : "Default Shipping Address"}</Label>
+                    <Input id="address" value={editAddress} onChange={(e) => setEditAddress(e.target.value)} placeholder="e.g. 12 Al-Mu'izz St, Cairo" />
+                  </div>
+                  {!isSeller ? (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="genres">Preferred Genres</Label>
+                      <Input id="genres" value={editGenres} onChange={(e) => setEditGenres(e.target.value)} placeholder="e.g. Fiction, History, Philosophy" />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="storeName">Store Display Name</Label>
+                        <Input id="storeName" value={editStoreName} onChange={(e) => setEditStoreName(e.target.value)} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="bio">Store Bio</Label>
+                        <Textarea id="bio" value={editBio} onChange={(e) => setEditBio(e.target.value)} rows={3} />
+                      </div>
+                    </>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+                  <Button onClick={handleSaveProfile}>Save Changes</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
 
         <div className="mt-8 grid gap-4 border-t pt-6 sm:grid-cols-2">

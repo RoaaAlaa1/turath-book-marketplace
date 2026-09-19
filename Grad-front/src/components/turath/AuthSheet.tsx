@@ -96,6 +96,7 @@ export function AuthSheet({ open, onOpenChange }: { open: boolean; onOpenChange:
           lastName,
           email: email.trim(),
           password,
+          phoneNumber: phone.trim(),
         }),
       });
 
@@ -169,12 +170,16 @@ export function AuthSheet({ open, onOpenChange }: { open: boolean; onOpenChange:
         localStorage.setItem("token", data.token);
       }
 
-      const localUserName = data?.username || email.trim().split("@")[0] || "Turath User";
+      const localUserName =
+        data?.firstName && data?.lastName
+          ? `${data.firstName} ${data.lastName}`.trim()
+          : data?.username || email.trim().split("@")[0] || "Turath User";
       const existingLocalUser = signIn(email);
       if (!existingLocalUser) {
         registerUser({
           name: localUserName,
           email: email.trim(),
+          phone: data?.phoneNumber || undefined,
           role: "customer",
         });
       }
@@ -298,6 +303,10 @@ export function AuthSheet({ open, onOpenChange }: { open: boolean; onOpenChange:
               }}
               onVerify={() => submitCode(register)}
               onSignin={() => reset("signin")}
+              onDone={() => {
+                onOpenChange(false);
+                reset("signin");
+              }}
             />
           )}
 
@@ -449,7 +458,7 @@ function SignUp(props: any) {
       <p className="text-sm text-muted-foreground">
         Your Turath account is ready. Sellers will see a pending verification notice until approved.
       </p>
-      <Button className="w-full" onClick={props.onSignin}>
+      <Button className="w-full" onClick={props.onDone ?? props.onSignin}>
         Done
       </Button>
     </div>
