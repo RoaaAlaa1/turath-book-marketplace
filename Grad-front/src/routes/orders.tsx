@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { BranchDivider } from "@/components/turath/Ornaments";
 import { egp, useTurath } from "@/lib/turath/store";
+import { apiFetch, currentUserId } from "@/lib/turath/api";
 import type { OrderStatus } from "@/lib/turath/types";
 
 const timeline: OrderStatus[] = ["Pending", "Confirmed", "Shipped", "Delivered"];
@@ -33,52 +34,25 @@ export const Route = createFileRoute("/orders")({
 function Orders() {
   const { orders, activeUser, cancelOrder } = useTurath();
   const [apiOrders, setApiOrders] = useState<typeof orders>([]);
-  const [bookCatalog, setBookCatalog] = useState<Record<string, { title: string; author: string; price: number }>>({});
+  const userId = currentUserId() || activeUser?.id;
 
   useEffect(() => {
-    fetch("/api/Books")
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        const nextMap: Record<string, { title: string; author: string; price: number }> = {};
-        for (const item of data ?? []) {
-          nextMap[String(item.id)] = {
-            title: item.title ?? `Book #${item.id}`,
-            author: item.author ?? "",
-            price: Number(item.price ?? 0),
-          };
-        }
-        setBookCatalog(nextMap);
-      })
-      .catch(() => setBookCatalog({}));
-  }, []);
-
-  useEffect(() => {
-    const userId = localStorage.getItem("token")
-      ? JSON.parse(
-          atob(localStorage.getItem("token")!.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")),
-        )?.["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"]
-      : null;
     if (!userId) return;
 
-    fetch(`/api/Orders/${userId}`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) =>
+    apiFetch<any[]>(`/api/Orders/${userId}`)
+      .then((data) => {
+        if (!Array.isArray(data)) return;
         setApiOrders(
           data.map((o: any) => {
-            const lines = (o.orderItems ?? []).map((line: any) => {
-              const productId = String(line.productId ?? "");
-              const book = bookCatalog[productId] ?? {
-                title: `Book #${productId}`,
-                author: "",
-                price: Number(line.price ?? 0),
-              };
-
+            const rawItems = o.orderItems ?? o.items ?? o.lines ?? [];
+            const lines = rawItems.map((line: any) => {
+              const productId = String(line.productId ?? line.bookId ?? "");
               return {
                 bookId: productId,
-                title: book.title,
-                author: book.author,
-                price: Number(line.price ?? book.price ?? 0),
-                quantity: Number(line.quantity ?? 0),
+                title: line.title ?? line.bookTitle ?? `Book #${productId}`,
+                author: line.author ?? "",
+                price: Number(line.unitPrice ?? line.price ?? 0),
+                quantity: Number(line.quantity ?? 1),
                 sellerId: String(line.sellerId ?? ""),
               };
             });
@@ -86,26 +60,27 @@ function Orders() {
             return {
               id: String(o.id ?? ""),
               customerId: String(o.customerId ?? userId),
-              customerName: o.customerName ?? activeUser.name,
+              customerName: o.customerName ?? activeUser?.name ?? "Customer",
               lines,
-              subtotal: Number(o.total ?? 0),
-              shipping: 35,
-              tax: 0,
-              total: Number(o.total ?? 0),
+              subtotal: Number(o.subtotal ?? o.totalPrice ?? o.total ?? 0),
+              shipping: Number(o.shipping ?? 35),
+              tax: Number(o.tax ?? 0),
+              total: Number(o.totalPrice ?? o.total ?? 0),
               status: (o.status ?? "Pending") as any,
               placedAt: o.createdAt ? new Date(o.createdAt).toLocaleDateString() : "Today",
-              address: o.address ?? "",
+              address: o.shippingAddress ?? o.address ?? "",
             };
           }),
-        ),
-      )
+        );
+      })
       .catch(() => setApiOrders([]));
-  }, [activeUser.name, bookCatalog]);
+  }, [userId, activeUser?.name]);
 
   const mine = useMemo(() => {
-    const list = apiOrders.length ? apiOrders : orders;
-    return list.filter((o) => o.customerId === activeUser.id);
-  }, [apiOrders, activeUser.id, orders]);
+    if (!userId) return orders;
+    const list = apiOrders.length > 0 ? apiOrders : orders;
+    return list.filter((o) => !o.customerId || o.customerId === userId || (activeUser?.id && o.customerId === activeUser.id));
+  }, [apiOrders, orders, userId, activeUser?.id]);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">

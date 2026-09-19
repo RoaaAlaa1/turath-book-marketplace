@@ -216,7 +216,7 @@ export function TurathProvider({ children }: { children: ReactNode }) {
       if (Array.isArray(data)) {
         const mappedOrders: Order[] = data.map((o: any) => ({
           id: String(o.id ?? o.orderId),
-          customerId: o.customerId ?? userId,
+          customerId: String(o.customerId ?? userId),
           customerName: o.customerName ?? "Customer",
           lines: (o.orderItems ?? o.items ?? o.lines ?? []).map((item: any) => ({
             bookId: String(item.productId ?? item.bookId),
@@ -249,7 +249,9 @@ export function TurathProvider({ children }: { children: ReactNode }) {
     try {
       const data = await apiFetch<any[]>("/api/Wishlist");
       if (Array.isArray(data)) {
-        patch({ wishlist: data.map((item: any) => String(item.bookId ?? item.productId ?? item)) });
+        const ids = data.map((item: any) => String(item.bookId ?? item.productId ?? item.id ?? item));
+        patch({ wishlist: ids });
+        localStorage.setItem(`turath-wishlist-${userId}`, JSON.stringify(ids));
         return;
       }
     } catch {
@@ -262,21 +264,8 @@ export function TurathProvider({ children }: { children: ReactNode }) {
     }
   }, [state.authUserId, patch]);
 
-  useEffect(() => {
-    if (!hydrated) return;
-    if (state.authUserId) {
-      void syncOrdersFromServer();
-      void syncWishlist();
-    }
-  }, [hydrated, state.authUserId, syncOrdersFromServer, syncWishlist]);
-
-  useEffect(() => {
-    if (!hydrated || !state.authUserId) return;
-    localStorage.setItem(`turath-wishlist-${state.authUserId}`, JSON.stringify(state.wishlist));
-  }, [hydrated, state.authUserId, state.wishlist]);
-
   const syncCartFromServer = useCallback(async () => {
-    const userId = currentUserId();
+    const userId = currentUserId() || state.authUserId;
     if (!userId) return;
 
     try {
@@ -293,20 +282,31 @@ export function TurathProvider({ children }: { children: ReactNode }) {
     } catch {
       // fall back to local cart state when server is unreachable
     }
-  }, [patch]);
+  }, [state.authUserId, patch]);
 
   useEffect(() => {
     if (!hydrated) return;
-    void syncCartFromServer();
-  }, [hydrated, state.authUserId, syncCartFromServer]);
+    if (state.authUserId) {
+      void syncOrdersFromServer();
+      void syncWishlist();
+      void syncCartFromServer();
+    }
+  }, [hydrated, state.authUserId, syncOrdersFromServer, syncWishlist, syncCartFromServer]);
 
   const value = useMemo<StoreValue>(() => {
     const { books, users, orders, categories, cart, wishlist, role, authUserId } = state;
 
-    // FIX: no longer falls back to a fake demo user when signed out.
-    // activeUser is null unless someone is actually authenticated.
+    const storedEmail = (typeof localStorage !== "undefined" ? localStorage.getItem("turath-email") : null) || undefined;
     const activeUser: AppUser | null = authUserId
-      ? users.find((u) => u.id === authUserId) ?? users.find((u) => u.email === localStorage.getItem("turath-email")) ?? null
+      ? users.find((u) => u.id === authUserId) ??
+        users.find((u) => storedEmail && u.email.toLowerCase() === storedEmail.toLowerCase()) ?? {
+          id: authUserId,
+          name: (storedEmail ? storedEmail.split("@")[0] : "Turath Reader"),
+          email: storedEmail ?? "reader@turath.com",
+          role: decodeTokenRole() ?? role ?? "customer",
+          status: "active",
+          joined: new Date().toISOString().slice(0, 10),
+        }
       : null;
 
     const bookById = (id: string) => books.find((b) => b.id === id);
@@ -321,17 +321,12 @@ export function TurathProvider({ children }: { children: ReactNode }) {
 
       setRole: (r) => patch({ role: r, authUserId: null, cart: [] }),
 
-      // FIX: wishlist now clears on sign out too, not just cart.
       signOut: () => {
         localStorage.removeItem("token");
         localStorage.removeItem("turath-email");
         patch({ authUserId: null, role: "customer", cart: [], wishlist: [] });
       },
 
-      // FIX: role is no longer fabricated at signup. A "seller" signup still
-      // registers as a normal customer locally — actual seller status only ever
-      // comes from the real JWT role claim (see decodeTokenRole), set after
-      // signIn/register call the real backend and get a real token back.
       registerUser: (user) => {
         const created: AppUser = {
           ...user,
@@ -339,7 +334,7 @@ export function TurathProvider({ children }: { children: ReactNode }) {
           joined: new Date().toISOString().slice(0, 10),
           status: "active",
         };
-        const realRole = decodeTokenRole() ?? "customer";
+        const realRole = decodeTokenRole() ?? user.role ?? "customer";
         const authenticatedId = currentUserId() ?? created.id;
         const authenticatedUser = { ...created, id: authenticatedId, role: realRole };
         localStorage.setItem("turath-email", user.email);
@@ -348,21 +343,30 @@ export function TurathProvider({ children }: { children: ReactNode }) {
           authUserId: authenticatedId,
           role: realRole,
         });
+        void syncOrdersFromServer();
+        void syncWishlist();
+        void syncCartFromServer();
         return authenticatedUser;
       },
 
-      // FIX: role now comes from the real token, not from local user.sellerState guesswork.
       signIn: (email) => {
         const user = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
-        if (!user || user.status === "suspended") return false;
+        if (user && user.status === "suspended") return false;
         const realRole = decodeTokenRole() ?? "customer";
-        const authenticatedId = currentUserId() ?? user.id;
-        localStorage.setItem("turath-email", user.email);
+        const authenticatedId = currentUserId() ?? user?.id ?? `u-${Date.now()}`;
+        localStorage.setItem("turath-email", email.trim());
+        const updatedUsers = user
+          ? users.map((existing) => existing.id === user.id ? { ...existing, id: authenticatedId, role: realRole } : existing)
+          : [{ id: authenticatedId, name: email.trim().split("@")[0], email: email.trim(), role: realRole, status: "active" as const, joined: new Date().toISOString().slice(0, 10) }, ...users];
+
         patch({
-          users: users.map((existing) => existing.id === user.id ? { ...existing, id: authenticatedId, role: realRole } : existing),
+          users: updatedUsers,
           authUserId: authenticatedId,
           role: realRole,
         });
+        void syncOrdersFromServer();
+        void syncWishlist();
+        void syncCartFromServer();
         return true;
       },
 
@@ -430,14 +434,20 @@ export function TurathProvider({ children }: { children: ReactNode }) {
       clearCart: () => patch({ cart: [] }),
       toggleWishlist: (bookId) => {
         const saved = wishlist.includes(bookId);
-        patch({ wishlist: saved ? wishlist.filter((w) => w !== bookId) : [...wishlist, bookId] });
-        if (currentUserId()) {
-          void apiFetch(
-            saved ? `/api/Wishlist/remove/${bookId}` : "/api/Wishlist/add",
-            saved
-              ? { method: "DELETE" }
-              : { method: "POST", body: JSON.stringify({ bookId: Number(bookId) }) },
-          ).catch(() => undefined);
+        const nextWishlist = saved ? wishlist.filter((w) => w !== bookId) : [...wishlist, bookId];
+        patch({ wishlist: nextWishlist });
+        const userId = currentUserId() || authUserId;
+        if (userId) {
+          localStorage.setItem(`turath-wishlist-${userId}`, JSON.stringify(nextWishlist));
+          const numericId = Number(bookId);
+          if (!isNaN(numericId) && numericId > 0) {
+            void apiFetch(
+              saved ? `/api/Wishlist/remove/${numericId}` : "/api/Wishlist/add",
+              saved
+                ? { method: "DELETE" }
+                : { method: "POST", body: JSON.stringify({ bookId: numericId }) },
+            ).catch(() => undefined);
+          }
         }
       },
 

@@ -60,7 +60,7 @@ function AdminPortal() {
 
   const customers = users.filter((u) => u.role === "customer");
   const sellers = users.filter((u) => u.role === "seller");
-  const pendingSellers = sellers.filter((u) => u.sellerState === "pending");
+  const pendingSellers = users.filter((u) => u.sellerState === "pending");
   const activeBooks = books.filter((b) => !b.removed);
   const pendingOrders = orders.filter((o) => o.status === "Pending");
   const flaggedBooks = books.filter((b) => b.flagged || b.removed);
@@ -76,12 +76,12 @@ function AdminPortal() {
     try {
       await apiFetch(`/api/SellerRequests/${request.id}/${decision}`, { method: "POST" });
       setSellerRequests((requests) => requests.filter((item) => item.id !== request.id));
+      decideSeller(request.userId, decision === "approve" ? "approved" : "rejected");
       toast.success(`${request.userEmail} ${decision}d`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to process seller request.");
     }
   };
-
   const metrics = [
     ["Customers", customers.length],
     ["Sellers", sellers.length],

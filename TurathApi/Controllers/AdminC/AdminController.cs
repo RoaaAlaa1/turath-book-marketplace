@@ -40,7 +40,8 @@ namespace TurathApi.Controllers.Admin
                 TotalOrders = await _context.Orders.CountAsync(),
                 PendingOrders = await _context.Orders.Where(o => o.Status == "Pending").CountAsync(), // تعديل المقارنة لنص
                 PendingBookApprovals = await _context.Books.Where(b => b.ApprovalStatus == ApprovalStatus.Pending).CountAsync(),
-                PendingCategoryApprovals = await _context.CategoryRequests.Where(r => r.Status == "pending").CountAsync()
+                PendingCategoryApprovals = await _context.CategoryRequests.Where(r => r.Status == "pending").CountAsync(),
+                PendingSellerRequests = await _context.SellerRequests.Where(r => r.Status == RequestStatus.Pending).CountAsync()
             };
 
             return Ok(stats);

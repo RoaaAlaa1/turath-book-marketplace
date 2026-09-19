@@ -28,6 +28,9 @@ export function currentUserId(): string | null {
     return (
       decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] ??
       decoded.nameid ??
+      decoded.sub ??
+      decoded.uid ??
+      decoded.userId ??
       null
     );
   } catch {
@@ -43,7 +46,10 @@ export function currentUserRoles(): string[] {
     const payload = token.split(".")[1];
     const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
     const decoded = JSON.parse(atob(normalized));
-    const raw = decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
+    const raw =
+      decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ??
+      decoded.role ??
+      decoded.roles;
     return Array.isArray(raw) ? raw : raw ? [raw] : [];
   } catch {
     return [];

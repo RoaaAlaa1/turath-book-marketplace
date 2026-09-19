@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -258,8 +258,5 @@ namespace TurathApi.Controllers
             return Ok(new { message = "Order placed successfully.", orderId = order.Id, total = totalAmount });
         }
     }
-<<<<<<< HEAD
-=======
-
->>>>>>> f5af0b43f98c0bf0b7d0e88c5c6df9a1e86bbf2f
 }
+

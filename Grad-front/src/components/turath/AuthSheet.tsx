@@ -113,6 +113,20 @@ export function AuthSheet({ open, onOpenChange }: { open: boolean; onOpenChange:
         localStorage.setItem("token", data.token);
       }
 
+      if (role === "seller" && data?.token) {
+        try {
+          await fetch(`${apiBaseUrl}/api/SellerRequests/apply`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${data.token}`,
+            },
+          });
+        } catch {
+          // Continue if request creation fails or user can apply from account page
+        }
+      }
+
       registerUser({
         name: fullName,
         email: email.trim(),

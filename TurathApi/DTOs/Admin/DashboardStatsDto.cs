@@ -1,4 +1,4 @@
-﻿namespace TurathApi.DTOs.Admin
+namespace TurathApi.DTOs.Admin
 {
     public class DashboardStatsDto
     {
@@ -9,5 +9,6 @@
         public int PendingOrders { get; set; }        // الطلبات المعلقة
         public int PendingBookApprovals { get; set; } // الكتب التي تنتظر الموافقة
         public int PendingCategoryApprovals { get; set; } // الفئات التي تنتظر الموافقة
+        public int PendingSellerRequests { get; set; } // طلبات البائعين المعلقة
     }
 }
