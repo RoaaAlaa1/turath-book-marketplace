@@ -20,6 +20,7 @@ namespace TurathApi.Controllers
             _context = context;
         }
 
+        // Returns the cart for the authenticated user
         [HttpGet]
         [Authorize]
         public async Task<IActionResult> GetCart()
@@ -42,6 +43,7 @@ namespace TurathApi.Controllers
             return Ok(cart);
         }
 
+        /// Adds a product to the authenticated user's cart.
         [HttpPost("add")]
         public async Task<IActionResult> AddToCart([FromBody] AddToCartDto dto)
         {
@@ -84,6 +86,7 @@ namespace TurathApi.Controllers
             return Ok(new { message = "Product added to cart successfully." });
         }
 
+        /// Updates item quantity in the authenticated user's cart.
         [HttpPut("update-item")]
         public async Task<IActionResult> UpdateCartItem([FromBody] UpdateCartItemDto dto)
         {
@@ -122,6 +125,7 @@ namespace TurathApi.Controllers
             return Ok(new { message = "Cart updated successfully." });
         }
 
+        /// Removes an item from the authenticated user's cart.
         [HttpDelete("remove-item")]
         public async Task<IActionResult> RemoveCartItem([FromBody] RemoveCartItemDto dto)
         {
@@ -158,7 +162,7 @@ namespace TurathApi.Controllers
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(customerId))
             {
-                return Unauthorized("Invalid user identifier.");
+                return Unauthorized(new { message = "Invalid user identifier." });
             }
 
             var cart = await _context.Carts
@@ -170,25 +174,33 @@ namespace TurathApi.Controllers
                 return BadRequest(new { message = "The cart is empty. Cannot complete the checkout process." });
             }
 
-            decimal totalAmount = cart.CartItems.Sum(item => item.Quantity * 10);
+            decimal totalAmount = 0;
+            var orderItemsList = new List<OrderItem>();
+
+            foreach (var cartItem in cart.CartItems)
+            {
+                // جلب السعر من جدول الكتب (Books) بناءً على الـ ID
+                var book = await _context.Books.FindAsync(cartItem.ProductId);
+                decimal itemPrice = book != null ? book.Price : 0;
+
+                totalAmount += cartItem.Quantity * itemPrice;
+
+                orderItemsList.Add(new OrderItem
+                {
+                    ProductId = cartItem.ProductId,
+                    Quantity = cartItem.Quantity,
+                    Price = itemPrice
+                });
+            }
 
             var order = new Order
             {
                 CustomerId = customerId,
                 Total = totalAmount,
                 Status = "Pending",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                OrderItems = orderItemsList
             };
-
-            foreach (var cartItem in cart.CartItems)
-            {
-                order.OrderItems.Add(new OrderItem
-                {
-                    ProductId = cartItem.ProductId,
-                    Quantity = cartItem.Quantity,
-                    Price = 10
-                });
-            }
 
             _context.Orders.Add(order);
             _context.CartItems.RemoveRange(cart.CartItems);
