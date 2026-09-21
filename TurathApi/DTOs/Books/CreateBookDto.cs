@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using TurathApi.Models.Enums;
 
 namespace TurathApi.DTOs.Books
@@ -18,11 +18,14 @@ namespace TurathApi.DTOs.Books
         [Range(0.01, 100000)]
         public decimal Price { get; set; }
 
-        [Range(1, int.MaxValue)]
+        [Range(0, int.MaxValue)]
         public int Quantity { get; set; }
 
-        [Required]
-        public int CategoryId { get; set; }
+        public int? CategoryId { get; set; }
+
+        public string? CategoryName { get; set; }
+
+        public string? SellerId { get; set; }
 
         public string ImageUrl { get; set; } = string.Empty;
 

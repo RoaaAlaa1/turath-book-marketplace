@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,63 +45,10 @@ function Shop() {
   const [cond, setCond] = useState("all");
   const [sort, setSort] = useState("relevance");
   const [selected, setSelected] = useState<Book | null>(null);
-  const [apiBooks, setApiBooks] = useState<Book[]>([]);
-  const [apiCategories, setApiCategories] = useState<string[]>([]);
-
-  useEffect(() => {
-    let active = true;
-    Promise.all([
-      fetch("/api/Books")
-        .then((res) => (res.ok ? res.json() : []))
-        .then((data) =>
-          data.map((item: any) => {
-            const imageUrl = item.imageUrl;
-            const safeImages = [imageUrl ?? ""].filter(
-              (url): url is string => Boolean(url) && url !== "__REAL_COVER_URL_REQUIRED__",
-            );
-
-            return {
-              id: String(item.id),
-              title: item.title ?? "Untitled",
-              titleAr: item.titleAr ?? undefined,
-              author: item.author ?? "Unknown",
-              price: Number(item.price ?? 0),
-              availableQuantity: Number(item.quantity ?? item.availableQuantity ?? 0),
-              category: item.categoryName ?? item.category ?? "General",
-              condition: (item.condition ?? "Good") as Book["condition"],
-              description: item.description ?? "",
-              conditionNotes: item.conditionNotes ?? "",
-              sellerId: item.sellerId ?? "",
-              spine: "sage",
-              images: safeImages,
-              reviews: [],
-              flagged: false,
-              removed: false,
-            };
-          }),
-        )
-        .catch(() => []),
-      fetch("/api/Categories")
-        .then((res) => (res.ok ? res.json() : []))
-        .then((data) => data.map((item: any) => item.name ?? item.title ?? "General"))
-        .catch(() => []),
-    ]).then(([books, cats]) => {
-      if (!active) return;
-      setApiBooks(books);
-      setApiCategories(cats);
-    });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const activeBooks = apiBooks.length > 0 ? apiBooks : visibleBooks;
-  const activeCategories = apiCategories.length > 0 ? apiCategories : categories;
 
   const results = useMemo(() => {
     const term = q.trim().toLowerCase();
-    const list = activeBooks.filter((b) => {
+    const list = visibleBooks.filter((b) => {
       const matches =
         !term ||
         [b.title, b.titleAr ?? "", b.author, b.description, b.category].some((f) =>
@@ -113,7 +60,7 @@ function Shop() {
     if (sort === "price-desc") list.sort((a, b) => b.price - a.price);
     if (sort === "rating") list.sort((a, b) => avgRating(b) - avgRating(a));
     return list;
-  }, [activeBooks, q, cat, cond, sort]);
+  }, [visibleBooks, q, cat, cond, sort]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
@@ -139,7 +86,7 @@ function Shop() {
             />
           </div>
         </div>
-        <Field label="Category" value={cat} onChange={setCat} options={["all", ...activeCategories]} />
+        <Field label="Category" value={cat} onChange={setCat} options={["all", ...categories]} />
         <Field label="Condition" value={cond} onChange={setCond} options={["all", ...conditions]} />
         <Field
           label="Sort by"

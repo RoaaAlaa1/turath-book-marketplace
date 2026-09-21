@@ -201,7 +201,7 @@ export function ChatWidget() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(localStorage.getItem("token")
+          ...(typeof localStorage !== "undefined" && localStorage.getItem("token")
             ? { Authorization: `Bearer ${localStorage.getItem("token")}` }
             : {}),
         },
@@ -212,8 +212,14 @@ export function ChatWidget() {
         throw new Error("Failed to fetch recommendation");
       }
 
-      const data = await response.json();
-      const botReply = data.reply || data.message || "I couldn't find a matching recommendation right now.";
+      const text = await response.text();
+      let data: any = null;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = text;
+      }
+      const botReply = data?.reply || data?.message || (typeof data === "string" && data ? data : "I couldn't find a matching recommendation right now.");
 
       setMessages((prev) => [
         ...prev,

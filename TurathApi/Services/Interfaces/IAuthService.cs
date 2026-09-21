@@ -1,4 +1,4 @@
-﻿using TurathApi.DTOs.Auth;
+using TurathApi.DTOs.Auth;
 
 namespace TurathApi.Services.Interfaces
 {
@@ -6,5 +6,6 @@ namespace TurathApi.Services.Interfaces
     {
         Task<AuthResponseDto> RegisterAsync(RegisterDto dto);
         Task<AuthResponseDto> LoginAsync(LoginDto dto);
+        Task<AuthResponseDto> GetCurrentUserAsync(string userId);
     }
 }

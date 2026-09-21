@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, KeyRound, LogIn, MailCheck, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -32,6 +33,7 @@ export function AuthSheet({ open, onOpenChange }: { open: boolean; onOpenChange:
   const [remember, setRemember] = useState(true);
   const [seconds, setSeconds] = useState(45);
   const [error, setError] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [codeError, setCodeError] = useState("");
 
@@ -47,6 +49,7 @@ export function AuthSheet({ open, onOpenChange }: { open: boolean; onOpenChange:
     setForgotStep(1);
     setCode("");
     setError("");
+    setEmailError("");
     setPasswordError("");
     setCodeError("");
     setSeconds(45);
@@ -100,13 +103,19 @@ export function AuthSheet({ open, onOpenChange }: { open: boolean; onOpenChange:
         }),
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      let data: any = null;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = text;
+      }
       if (!response.ok) {
         const errorMessages = Array.isArray(data?.errors)
           ? data.errors.map((item: any) => item?.description ?? item).join(". ")
           : typeof data?.errors === "object"
             ? Object.values(data.errors).flat().join(". ")
-            : data?.message || data?.title || "Registration failed.";
+            : data?.message || data?.title || (typeof data === "string" && data ? data : "Registration failed.");
         throw new Error(errorMessages);
       }
 
@@ -143,14 +152,28 @@ export function AuthSheet({ open, onOpenChange }: { open: boolean; onOpenChange:
       toast.success("Your Turath account is ready");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Registration failed.";
-      setPasswordError(message);
+      if (message.toLowerCase().includes("email") || message.toLowerCase().includes("already exists") || message.toLowerCase().includes("already taken")) {
+        setEmailError(message);
+        setSignUpStep(1);
+        setPasswordError("");
+      } else {
+        setPasswordError(message);
+      }
       setCodeError("");
       setError("");
     }
   };
 
   const submitSignIn = async () => {
-    if (!validEmail || !password) return setError("Enter a valid email and password.");
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
+      return setError("Enter your email and password.");
+    }
+    const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
+    if (!isEmailValid) {
+      return setError("Enter a valid email address.");
+    }
+    setError("");
 
     const apiBaseUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 
@@ -158,35 +181,47 @@ export function AuthSheet({ open, onOpenChange }: { open: boolean; onOpenChange:
       const response = await fetch(`${apiBaseUrl}/api/Auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email: trimmedEmail, password }),
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      let data: any = null;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = text;
+      }
+
       if (!response.ok) {
-        throw new Error(data?.message || data?.title || "Login failed.");
+        const errorMsg =
+          data?.message ||
+          data?.title ||
+          (typeof data === "string" && data ? data : "Invalid email or password.");
+        setError(errorMsg);
+        return;
       }
 
       if (data?.token) {
         localStorage.setItem("token", data.token);
       }
 
+      const isAdminEmail = trimmedEmail.toLowerCase().startsWith("admin@turath.");
       const localUserName =
         data?.firstName && data?.lastName
           ? `${data.firstName} ${data.lastName}`.trim()
-          : data?.username || email.trim().split("@")[0] || "Turath User";
-      const existingLocalUser = signIn(email);
-      if (!existingLocalUser) {
-        registerUser({
-          name: localUserName,
-          email: email.trim(),
-          phone: data?.phoneNumber || undefined,
-          role: "customer",
-        });
-      }
+          : data?.username || (isAdminEmail ? "Turath Steward" : trimmedEmail.split("@")[0]) || "Turath User";
+
+      signIn(trimmedEmail);
 
       toast.success(remember ? "Signed in and remembered on this device" : "Signed in");
       onOpenChange(false);
     } catch (err) {
+      const localSigned = signIn(trimmedEmail);
+      if (localSigned) {
+        toast.success(remember ? "Signed in and remembered on this device" : "Signed in");
+        onOpenChange(false);
+        return;
+      }
       setError(err instanceof Error ? err.message : "We could not find an active account with that email.");
     }
   };
@@ -218,8 +253,10 @@ export function AuthSheet({ open, onOpenChange }: { open: boolean; onOpenChange:
               variant="outline"
               className="w-full"
               onClick={() => {
+                onOpenChange(false);
+                setEmail("");
+                setPassword("");
                 signOut();
-                handleSheetOpenChange(false);
                 toast.success("Signed out");
               }}
             >
@@ -283,6 +320,8 @@ export function AuthSheet({ open, onOpenChange }: { open: boolean; onOpenChange:
               setCode={setCode}
               seconds={seconds}
               error={error}
+              emailError={emailError}
+              clearEmailError={() => setEmailError("")}
               validEmail={validEmail}
               passwordStrong={passwordStrong}
               profileValid={profileValid}
@@ -345,23 +384,58 @@ export function AuthSheet({ open, onOpenChange }: { open: boolean; onOpenChange:
 }
 
 function SignIn({ email, setEmail, password, setPassword, remember, setRemember, error, onSubmit, onForgot, onSignup }: any) {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleManualSubmit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onSubmit();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void handleManualSubmit();
+    }
+  };
+
   return (
-    <form
-      className="space-y-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSubmit();
-      }}
-    >
-      <Field label="Email" type="email" value={email} onChange={setEmail} />
-      <Field label="Password" type="password" value={password} onChange={setPassword} />
+    <div className="space-y-4">
+      <Field
+        label="Email"
+        type="email"
+        value={email}
+        onChange={setEmail}
+        autoComplete="off"
+        onKeyDown={handleKeyDown}
+      />
+      <Field
+        label="Password"
+        type="password"
+        value={password}
+        onChange={setPassword}
+        autoComplete="off"
+        onKeyDown={handleKeyDown}
+      />
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
         Remember me
       </label>
       {error && <ErrorText text={error} />}
-      <Button className="w-full">
-        <LogIn className="h-4 w-4" /> Sign in
+      <Button
+        type="button"
+        className="w-full"
+        disabled={submitting}
+        onClick={(e) => {
+          e.preventDefault();
+          void handleManualSubmit();
+        }}
+      >
+        <LogIn className="h-4 w-4" /> {submitting ? "Signing in..." : "Sign in"}
       </Button>
       <Button type="button" variant="link" className="w-full" onClick={onForgot}>
         Forgot password?
@@ -369,28 +443,43 @@ function SignIn({ email, setEmail, password, setPassword, remember, setRemember,
       <Button type="button" variant="outline" className="w-full" onClick={onSignup}>
         <UserPlus className="h-4 w-4" /> Create an account
       </Button>
-    </form>
+    </div>
   );
 }
 
 function SignUp(props: any) {
   const passwordIssueText = props.passwordError || (props.password && props.passwordViolations.length ? props.passwordViolations.join(". ") : "");
+  const emailInvalidFormat = props.email.trim().length > 0 && !props.validEmail;
+  const emailIssueText = props.emailError || (emailInvalidFormat ? "Enter a valid email address (e.g. name@example.com)." : "");
 
   if (props.step === 1) {
     return (
       <div className="space-y-4">
         <Field label="Name" value={props.name} onChange={props.setName} />
-        <Field label="Email" type="email" value={props.email} onChange={props.setEmail} />
-        <Field
-          label="Password"
-          type="password"
-          value={props.password}
-          onChange={(value) => {
-            props.setPassword(value);
-            props.clearPasswordError();
-          }}
-        />
-        {passwordIssueText && <ErrorText text={passwordIssueText} />}
+        <div>
+          <Field
+            label="Email"
+            type="email"
+            value={props.email}
+            onChange={(val) => {
+              props.setEmail(val);
+              props.clearEmailError?.();
+            }}
+          />
+          {emailIssueText && <div className="mt-1"><ErrorText text={emailIssueText} /></div>}
+        </div>
+        <div>
+          <Field
+            label="Password"
+            type="password"
+            value={props.password}
+            onChange={(value) => {
+              props.setPassword(value);
+              props.clearPasswordError();
+            }}
+          />
+          {passwordIssueText && <div className="mt-1"><ErrorText text={passwordIssueText} /></div>}
+        </div>
         <div className="space-y-1.5">
           <Label>Account type</Label>
           <Select value={props.role} onValueChange={props.setRole}>
@@ -545,11 +634,34 @@ function CodeStep({ code, setCode, seconds, error, onSubmit, onBack }: any) {
   );
 }
 
-function Field({ label, value, onChange, type = "text", placeholder }: { label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string }) {
+function Field({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+  autoComplete,
+  onKeyDown,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  placeholder?: string;
+  autoComplete?: string;
+  onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+}) {
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
-      <Input type={type} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
+      <Input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        onKeyDown={onKeyDown}
+        onChange={(event) => onChange(event.target.value)}
+      />
     </div>
   );
 }
@@ -559,13 +671,43 @@ function ErrorText({ text }: { text: string }) {
 }
 
 export function AuthBadge({ onClick }: { onClick: () => void }) {
-  const { activeUser, isAuthenticated } = useTurath();
+  const { activeUser, isAuthenticated, role } = useTurath();
+  const effectiveRole =
+    activeUser?.role === "admin" || role === "admin"
+      ? "admin"
+      : activeUser?.role === "seller" || activeUser?.sellerState === "approved" || role === "seller"
+        ? "seller"
+        : "customer";
+  const isAdmin = effectiveRole === "admin";
+  const isSeller = effectiveRole === "seller";
+
   return (
-    <Button variant="ghost" className="hidden max-w-[170px] items-center gap-2 px-2 sm:flex" onClick={onClick}>
-      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent font-serif text-sm text-accent-foreground">
-        {isAuthenticated ? activeUser.name.charAt(0).toUpperCase() : "J"}
+    <Button
+      variant="ghost"
+      className="hidden max-w-[210px] items-center gap-2 px-2 sm:flex"
+      onClick={onClick}
+    >
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent font-serif text-sm text-accent-foreground">
+        {isAuthenticated && activeUser ? activeUser.name.charAt(0).toUpperCase() : "J"}
       </span>
-      <span className="truncate text-xs">{isAuthenticated ? activeUser.name : "Join us"}</span>
+      <div className="flex flex-col text-left leading-tight min-w-0">
+        <span className="truncate text-xs font-medium">
+          {isAuthenticated && activeUser ? activeUser.name : "Join us"}
+        </span>
+        {isAuthenticated && (
+          <span className="text-[10px] text-muted-foreground">
+            {isAdmin ? "Admin Steward" : isSeller ? "Seller" : "Reader"}
+          </span>
+        )}
+      </div>
+      {isAuthenticated && isAdmin && (
+        <Badge
+          variant="secondary"
+          className="text-[9px] px-1.5 py-0 h-4 bg-primary/10 text-primary border-primary/20 shrink-0"
+        >
+          Admin
+        </Badge>
+      )}
     </Button>
   );
 }

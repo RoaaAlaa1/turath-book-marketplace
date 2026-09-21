@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { UserRound, MapPin, Phone, BookOpen, Store, Pencil } from "lucide-react";
+import { UserRound, MapPin, Phone, BookOpen, Store, Pencil, MessageSquare, Plus, CheckCircle2, Clock, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,9 +30,60 @@ export const Route = createFileRoute("/account")({
   component: Account,
 });
 
+type CustomerTicket = {
+  id: number;
+  subject: string;
+  message: string;
+  status: string | number;
+  adminResponse?: string;
+  orderId?: string;
+  createdAt: string;
+};
+
 function Account() {
-  const { activeUser, isAuthenticated, updateProfile } = useTurath();
+  const { activeUser, isAuthenticated, updateProfile, syncCurrentUserProfile, signOut } = useTurath();
   const [editOpen, setEditOpen] = useState(false);
+  const [ticketModalOpen, setTicketModalOpen] = useState(false);
+  const [ticketSubject, setTicketSubject] = useState("");
+  const [ticketMessage, setTicketMessage] = useState("");
+  const [ticketOrderId, setTicketOrderId] = useState("");
+  const [myTickets, setMyTickets] = useState<CustomerTicket[]>([]);
+
+  const loadTickets = () => {
+    if (!isAuthenticated) return;
+    void apiFetch<CustomerTicket[]>("/api/support-tickets")
+      .then((tickets) => setMyTickets(tickets))
+      .catch(() => setMyTickets([]));
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      void syncCurrentUserProfile();
+      loadTickets();
+    }
+  }, [isAuthenticated, syncCurrentUserProfile]);
+
+  const handleSubmitTicket = async () => {
+    if (!ticketSubject.trim() || !ticketMessage.trim()) return;
+    try {
+      await apiFetch("/api/support-tickets", {
+        method: "POST",
+        body: JSON.stringify({
+          subject: ticketSubject.trim(),
+          message: ticketMessage.trim(),
+          orderId: ticketOrderId.trim() ? ticketOrderId.trim() : undefined,
+        }),
+      });
+      toast.success("Support ticket submitted. A steward will respond shortly.");
+      setTicketSubject("");
+      setTicketMessage("");
+      setTicketOrderId("");
+      setTicketModalOpen(false);
+      loadTickets();
+    } catch (error) {
+      toast.error("Failed to submit support ticket.");
+    }
+  };
 
   const user = activeUser ?? {
     id: "",
@@ -56,7 +107,8 @@ function Account() {
   const [editStoreName, setEditStoreName] = useState(user.storeName ?? "");
   const [editBio, setEditBio] = useState(user.bio ?? "");
 
-  const isSeller = user.role === "seller";
+  const isSeller = user.role === "seller" || user.sellerState === "approved";
+  const roleBadgeText = user.role === "admin" ? "Admin" : isSeller ? "Seller" : "Customer";
   const sellerRequestPending = user.sellerState === "pending";
   const displayName = isAuthenticated ? user.name : "Guest Reader";
   const displayEmail = isAuthenticated ? user.email : "guest@example.com";
@@ -92,15 +144,13 @@ function Account() {
       return;
     }
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      toast.error("Your session is not active. Please sign in again.");
-      return;
-    }
-
     try {
       const data = await apiFetch<{ message?: string }>("/api/SellerRequests/apply", {
         method: "POST",
+        body: JSON.stringify({
+          userId: activeUser.id,
+          email: activeUser.email,
+        }),
       });
 
       updateProfile(activeUser.id, { sellerState: "pending" });
@@ -141,7 +191,7 @@ function Account() {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="font-serif text-2xl">{displayName}</h2>
-                <Badge variant="outline">{isSeller ? "Seller" : "Customer"}</Badge>
+                <Badge variant="outline">{roleBadgeText}</Badge>
                 {!isAuthenticated && <Badge className="bg-amber-gold/25 text-foreground">Guest profile</Badge>}
               </div>
               <p className="mt-1 text-sm text-muted-foreground">{displayEmail}</p>
@@ -149,57 +199,71 @@ function Account() {
           </div>
 
           {isAuthenticated && (
-            <Dialog open={editOpen} onOpenChange={setEditOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" onClick={openEditModal} className="gap-1.5">
-                  <Pencil className="h-3.5 w-3.5" />
-                  Edit Profile
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Edit Profile Details</DialogTitle>
-                  <DialogDescription>
-                    Update your contact number, delivery address, and preferences.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-3.5 py-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input id="name" value={editName} onChange={(e) => setEditName(e.target.value)} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input id="phone" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="e.g. 01012345678" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="address">{isSeller ? "Store Location" : "Default Shipping Address"}</Label>
-                    <Input id="address" value={editAddress} onChange={(e) => setEditAddress(e.target.value)} placeholder="e.g. 12 Al-Mu'izz St, Cairo" />
-                  </div>
-                  {!isSeller ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={openEditModal} className="gap-1.5">
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit Profile
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Edit Profile Details</DialogTitle>
+                    <DialogDescription>
+                      Update your contact number, delivery address, and preferences.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-3.5 py-3">
                     <div className="space-y-1.5">
-                      <Label htmlFor="genres">Preferred Genres</Label>
-                      <Input id="genres" value={editGenres} onChange={(e) => setEditGenres(e.target.value)} placeholder="e.g. Fiction, History, Philosophy" />
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input id="name" value={editName} onChange={(e) => setEditName(e.target.value)} />
                     </div>
-                  ) : (
-                    <>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <Input id="phone" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="e.g. 01012345678" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="address">{isSeller ? "Store Location" : "Default Shipping Address"}</Label>
+                      <Input id="address" value={editAddress} onChange={(e) => setEditAddress(e.target.value)} placeholder="e.g. 12 Al-Mu'izz St, Cairo" />
+                    </div>
+                    {!isSeller ? (
                       <div className="space-y-1.5">
-                        <Label htmlFor="storeName">Store Display Name</Label>
-                        <Input id="storeName" value={editStoreName} onChange={(e) => setEditStoreName(e.target.value)} />
+                        <Label htmlFor="genres">Preferred Genres</Label>
+                        <Input id="genres" value={editGenres} onChange={(e) => setEditGenres(e.target.value)} placeholder="e.g. Fiction, History, Philosophy" />
                       </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="bio">Store Bio</Label>
-                        <Textarea id="bio" value={editBio} onChange={(e) => setEditBio(e.target.value)} rows={3} />
-                      </div>
-                    </>
-                  )}
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-                  <Button onClick={handleSaveProfile}>Save Changes</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                    ) : (
+                      <>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="storeName">Store Display Name</Label>
+                          <Input id="storeName" value={editStoreName} onChange={(e) => setEditStoreName(e.target.value)} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="bio">Store Bio</Label>
+                          <Textarea id="bio" value={editBio} onChange={(e) => setEditBio(e.target.value)} rows={3} />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+                    <Button onClick={handleSaveProfile}>Save Changes</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  signOut();
+                  toast.success("Signed out successfully");
+                }}
+                className="gap-1.5 text-muted-foreground hover:text-destructive"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Sign Out
+              </Button>
+            </div>
           )}
         </div>
 
@@ -238,6 +302,94 @@ function Account() {
           </div>
         )}
       </section>
+
+      {/* CUSTOMER SUPPORT TICKETS SECTION */}
+      {isAuthenticated && (
+        <section className="mt-8 rounded-lg border bg-card p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="font-display text-xl tracking-wide">Customer Support</h3>
+              <p className="text-xs text-muted-foreground">Need help with an order, delivery, or book inquiry? Submit a ticket.</p>
+            </div>
+            <Button size="sm" onClick={() => setTicketModalOpen(true)} className="gap-1.5">
+              <Plus className="h-4 w-4" /> New Ticket
+            </Button>
+          </div>
+
+          <div className="mt-6 space-y-3">
+            {myTickets.map((t) => (
+              <div key={t.id} className="rounded-lg border bg-background p-4 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm">{t.subject}</span>
+                    <Badge variant={t.adminResponse ? "secondary" : "outline"} className={t.adminResponse ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900"}>
+                      {t.adminResponse ? "Resolved" : "Under Review"}
+                    </Badge>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{new Date(t.createdAt).toLocaleDateString()}</span>
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">{t.message}</p>
+                {t.adminResponse && (
+                  <div className="mt-3 rounded border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-950">
+                    <p className="font-semibold">Steward Response:</p>
+                    <p className="mt-1">{t.adminResponse}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+            {!myTickets.length && (
+              <p className="text-center py-6 text-sm text-muted-foreground">You have no open support tickets.</p>
+            )}
+          </div>
+
+          <Dialog open={ticketModalOpen} onOpenChange={setTicketModalOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Submit Support Ticket</DialogTitle>
+                <DialogDescription>
+                  Send a message to our stewards. We will respond directly to your ticket.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3.5 py-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="t-subject">Subject</Label>
+                  <Input
+                    id="t-subject"
+                    value={ticketSubject}
+                    onChange={(e) => setTicketSubject(e.target.value)}
+                    placeholder="e.g. Question regarding delivery time"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="t-order">Order ID (optional)</Label>
+                  <Input
+                    id="t-order"
+                    value={ticketOrderId}
+                    onChange={(e) => setTicketOrderId(e.target.value)}
+                    placeholder="e.g. ord-12345"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="t-msg">Message</Label>
+                  <Textarea
+                    id="t-msg"
+                    rows={4}
+                    value={ticketMessage}
+                    onChange={(e) => setTicketMessage(e.target.value)}
+                    placeholder="Describe what you need assistance with..."
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setTicketModalOpen(false)}>Cancel</Button>
+                <Button onClick={handleSubmitTicket} disabled={!ticketSubject.trim() || !ticketMessage.trim()}>
+                  Submit Ticket
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </section>
+      )}
     </div>
   );
 }

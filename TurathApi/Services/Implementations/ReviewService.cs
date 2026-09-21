@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
 using TurathApi.DTOs;
 using TurathApi.DTOs.Reviews;
@@ -61,7 +61,7 @@ namespace TurathApi.Services.Implementations
 
             var review = new Review
             {
-                CustomerId = dto.CustomerId,
+                CustomerId = dto.CustomerId ?? string.Empty,
                 BookId = dto.BookId,
                 Rating = dto.Rating,
                 Comment = dto.Comment,

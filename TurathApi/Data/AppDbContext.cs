@@ -132,6 +132,11 @@ namespace TurathApi.Data
                     .HasForeignKey(b => b.CategoryId)
                     .OnDelete(DeleteBehavior.Restrict);
 
+                entity.HasOne(b => b.Seller)
+                    .WithMany()
+                    .HasForeignKey(b => b.SellerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
             });
 
             // 4. ضبط جدول WishlistItems

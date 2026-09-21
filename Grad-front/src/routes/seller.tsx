@@ -58,13 +58,23 @@ function SellerPortal() {
   const { role, activeUser, books, orders, categories, saveBook, deleteBook, setOrderStatus } =
     useTurath();
   const [editing, setEditing] = useState<Book | null>(null);
-  const isPendingSeller = activeUser?.sellerState === "pending";
+  const isApprovedSeller =
+    role === "seller" || activeUser?.role === "seller" || activeUser?.sellerState === "approved";
+  const isPendingSeller = role === "pendingSeller" || activeUser?.sellerState === "pending";
 
   const sellerId = activeUser?.id ?? "";
   const sellerName = activeUser?.name ?? "Seller";
 
   const myBooks = useMemo(
-    () => (sellerId ? books.filter((b) => b.sellerId === sellerId) : []),
+    () =>
+      sellerId
+        ? books.filter(
+            (b) =>
+              b.sellerId === sellerId &&
+              !b.removed &&
+              b.approvalStatus !== "Rejected",
+          )
+        : [],
     [books, sellerId],
   );
   const myOrders = useMemo(
@@ -82,7 +92,7 @@ function SellerPortal() {
       0,
     );
 
-  if (role === "pendingSeller" || isPendingSeller) {
+  if (isPendingSeller) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-24 text-center">
         <div className="rounded-lg border border-amber-gold/50 bg-amber-gold/10 p-10">
@@ -102,16 +112,53 @@ function SellerPortal() {
     );
   }
 
-  if (role !== "seller") {
+  if (!isApprovedSeller) {
     return (
       <div className="mx-auto max-w-xl px-4 py-24 text-center">
-        <h1 className="font-display text-2xl tracking-wide">Seller portal</h1>
-        <p className="mt-3 text-sm text-muted-foreground">
-          Switch the role selector to “Approved Seller” or “Pending Seller” to preview this area.
-        </p>
+        <div className="rounded-xl border bg-card p-8 shadow-sm">
+          <h1 className="font-display text-2xl tracking-wide">Seller Portal</h1>
+          <p className="font-arabic-display mt-2 text-xl text-primary">لوحة البائع</p>
+          <BranchDivider className="my-6" />
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Share your literary treasures with readers across Turath. Submit a seller application to start listing books, managing your inventory, and fulfilling orders.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            {activeUser ? (
+              <Button
+                onClick={() => {
+                  window.location.href = "/account";
+                }}
+              >
+                Go to Account & Apply
+              </Button>
+            ) : (
+              <Button
+                onClick={() => window.dispatchEvent(new Event("turath:open-auth"))}
+              >
+                Sign In to Apply
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
     );
   }
+
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const { requestCategory } = useTurath();
+
+  const handleSuggestCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    const success = await requestCategory(newCategoryName.trim());
+    if (success) {
+      toast.success(`Category request for "${newCategoryName.trim()}" submitted for admin approval.`);
+      setNewCategoryName("");
+      setCategoryModalOpen(false);
+    } else {
+      toast.error("Failed to submit category request.");
+    }
+  };
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -128,12 +175,43 @@ function SellerPortal() {
       </div>
 
       <section className="mt-10">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display text-xl tracking-wide">Inventory</h2>
-          <Button onClick={() => setEditing(blankBook(sellerId, categories[0] ?? "Fiction"))}>
-            <Plus className="h-4 w-4" /> Add book
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setCategoryModalOpen(true)}>
+              Suggest Category
+            </Button>
+            <Button size="sm" onClick={() => setEditing(blankBook(sellerId, categories[0] ?? "Fiction"))}>
+              <Plus className="h-4 w-4" /> Add book
+            </Button>
+          </div>
         </div>
+
+        <Dialog open={categoryModalOpen} onOpenChange={setCategoryModalOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Suggest a New Category</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-3">
+              <p className="text-sm text-muted-foreground">
+                Request a new genre or subject category. It will become available once approved by the administrator.
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="cat-name">Category Name</Label>
+                <Input
+                  id="cat-name"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="e.g. Andalusian Poetry"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCategoryModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleSuggestCategory} disabled={!newCategoryName.trim()}>Submit Request</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <div className="overflow-x-auto rounded-lg border bg-card">
           <Table>
             <TableHeader>
@@ -153,7 +231,18 @@ function SellerPortal() {
                     <div className="flex items-center gap-3">
                       <BookCover book={b} className="h-14 w-10 shrink-0" />
                       <div>
-                        <p className="font-medium">{b.title}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{b.title}</p>
+                          {b.approvalStatus === "Pending" ? (
+                            <Badge variant="outline" className="bg-amber-100/60 text-amber-900 border-amber-300 text-[10px]">
+                              Pending Review
+                            </Badge>
+                          ) : b.approvalStatus === "Approved" ? (
+                            <Badge variant="outline" className="bg-emerald-100/60 text-emerald-900 border-emerald-300 text-[10px]">
+                              Live
+                            </Badge>
+                          ) : null}
+                        </div>
                         <p className="text-xs text-muted-foreground">{b.author}</p>
                         {b.flagged && (
                           <Badge className="mt-1 bg-destructive/15 text-destructive">Flagged</Badge>
@@ -216,7 +305,7 @@ function SellerPortal() {
                   <TableCell>{o.customerName}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {o.lines
-                      .filter((l) => l.sellerId === activeUser.id)
+                      .filter((l) => Boolean(activeUser?.id && l.sellerId === activeUser.id))
                       .map((l) => `${l.title} ×${l.quantity}`)
                       .join(", ")}
                   </TableCell>
@@ -259,10 +348,10 @@ function SellerPortal() {
         book={editing}
         categories={categories}
         onClose={() => setEditing(null)}
-        onSave={(b) => {
-          saveBook(b);
+        onSave={async (b) => {
+          await saveBook(b);
           setEditing(null);
-          toast.success("Listing saved");
+          toast.success("Listing saved and submitted for review!");
         }}
       />
     </div>
@@ -291,10 +380,13 @@ function blankBook(sellerId: string, category: string): Book {
     conditionNotes: "",
     sellerId,
     spine: "sage",
-    images: ["front", "spine"],
+    images: [],
+    imageUrl: "",
     reviews: [],
     flagged: false,
     removed: false,
+    ageRating: "All Ages",
+    approvalStatus: "Pending",
   };
 }
 
@@ -307,10 +399,11 @@ function BookForm({
   book: Book | null;
   categories: string[];
   onClose: () => void;
-  onSave: (b: Book) => void;
+  onSave: (b: Book) => Promise<void> | void;
 }) {
   const [draft, setDraft] = useState<Book | null>(book);
   const [touched, setTouched] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   if (book && draft?.id !== book.id) setDraft(book);
   if (!book || !draft) return null;
@@ -373,6 +466,46 @@ function BookForm({
             onChange={(v) => set({ spine: v as Book["spine"] })}
           />
           <div className="space-y-1.5">
+            <Label htmlFor="bf-image">Book Cover Image (URL or Upload)</Label>
+            <div className="flex gap-2">
+              <Input
+                id="bf-image"
+                type="url"
+                value={draft.imageUrl ?? ""}
+                placeholder="https://... or paste image URL"
+                onChange={(e) => {
+                  const url = e.target.value;
+                  set({ imageUrl: url, images: [url].filter(Boolean) });
+                }}
+              />
+              <label className="cursor-pointer inline-flex items-center justify-center rounded-md border bg-muted px-3 text-xs font-medium hover:bg-accent whitespace-nowrap">
+                Upload File
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        const dataUrl = reader.result as string;
+                        set({ imageUrl: dataUrl, images: [dataUrl] });
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+              </label>
+            </div>
+            {draft.imageUrl && (
+              <div className="mt-2 flex items-center gap-3 rounded border p-2 bg-muted/40">
+                <img src={draft.imageUrl} alt="Cover preview" className="h-16 w-12 rounded object-cover shadow" />
+                <span className="text-xs text-muted-foreground">Image preview attached</span>
+              </div>
+            )}
+          </div>
+          <div className="space-y-1.5">
             <Label htmlFor="bf-desc">Description</Label>
             <Textarea id="bf-desc" value={draft.description} onChange={(e) => set({ description: e.target.value })} />
           </div>
@@ -382,16 +515,26 @@ function BookForm({
           </div>
         </form>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
           <Button
-            onClick={() => {
+            disabled={saving}
+            onClick={async () => {
               setTouched(true);
-              if (valid) onSave(draft);
+              if (valid && !saving) {
+                setSaving(true);
+                try {
+                  await onSave(draft);
+                } catch (err: any) {
+                  toast.error(err?.message || "Failed to save listing.");
+                } finally {
+                  setSaving(false);
+                }
+              }
             }}
           >
-            Save listing
+            {saving ? "Saving..." : "Save listing"}
           </Button>
         </DialogFooter>
       </DialogContent>

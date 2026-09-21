@@ -76,10 +76,10 @@ namespace TurathApi.Controllers.Wishlist
 
             try
             {
-                var bookExists = await _context.Books.AnyAsync(b => b.Id == dto.BookId);
+                var bookExists = await _context.Books.AnyAsync(b => b.Id == dto.BookId && b.ApprovalStatus == TurathApi.Models.Enums.ApprovalStatus.Approved);
                 if (!bookExists)
                 {
-                    return NotFound(new { message = "Book not found" });
+                    return NotFound(new { message = "Book not found or not approved." });
                 }
 
                 var alreadyExists = await _context.WishlistItems

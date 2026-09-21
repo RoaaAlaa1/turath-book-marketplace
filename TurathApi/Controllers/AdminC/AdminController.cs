@@ -38,7 +38,7 @@ namespace TurathApi.Controllers.Admin
                 TotalSellers = sellers.Count,
                 TotalBooks = await _context.Books.CountAsync(),
                 TotalOrders = await _context.Orders.CountAsync(),
-                PendingOrders = await _context.Orders.Where(o => o.Status == "Pending").CountAsync(), // تعديل المقارنة لنص
+                PendingOrders = await _context.Orders.Where(o => o.Status == "Pending").CountAsync(),
                 PendingBookApprovals = await _context.Books.Where(b => b.ApprovalStatus == ApprovalStatus.Pending).CountAsync(),
                 PendingCategoryApprovals = await _context.CategoryRequests.Where(r => r.Status == "pending").CountAsync(),
                 PendingSellerRequests = await _context.SellerRequests.Where(r => r.Status == RequestStatus.Pending).CountAsync()
@@ -53,18 +53,30 @@ namespace TurathApi.Controllers.Admin
         [HttpGet("users")]
         public async Task<IActionResult> GetAllUsers()
         {
-            var users = await _userManager.Users
-                .Select(u => new
-                {
-                    u.Id,
-                    u.UserName,
-                    u.Email,
-                    u.LockoutEnabled,
-                    IsSuspended = u.LockoutEnd.HasValue && u.LockoutEnd.Value > DateTimeOffset.UtcNow
-                })
-                .ToListAsync();
+            var userEntities = await _userManager.Users.ToListAsync();
+            var result = new List<object>();
 
-            return Ok(users);
+            foreach (var u in userEntities)
+            {
+                var roles = await _userManager.GetRolesAsync(u);
+                var role = roles.Contains("Admin") ? "admin" : (roles.Contains("Seller") ? "seller" : "customer");
+                result.Add(new
+                {
+                    id = u.Id,
+                    name = !string.IsNullOrWhiteSpace(u.FirstName)
+                        ? $"{u.FirstName} {u.LastName}".Trim()
+                        : (u.UserName ?? u.Email),
+                    email = u.Email,
+                    userName = u.UserName,
+                    role = role,
+                    roles = roles,
+                    isSuspended = u.LockoutEnd.HasValue && u.LockoutEnd.Value > DateTimeOffset.UtcNow,
+                    lockoutEnabled = u.LockoutEnabled,
+                    joined = u.CreatedAt.ToString("MMM yyyy")
+                });
+            }
+
+            return Ok(result);
         }
 
         // 2. Suspend / activate a user account (Toggle Suspend/Activate)
@@ -100,12 +112,19 @@ namespace TurathApi.Controllers.Admin
         public async Task<IActionResult> GetPendingCategoryRequests()
         {
             var requests = await _context.CategoryRequests
+                .Include(r => r.Seller)
                 .Where(r => r.Status == "pending")
                 .Select(r => new
                 {
                     r.Id,
                     r.CategoryName,
                     r.SellerId,
+                    sellerName = r.Seller != null
+                        ? (!string.IsNullOrWhiteSpace(r.Seller.FirstName)
+                            ? $"{r.Seller.FirstName} {r.Seller.LastName}".Trim()
+                            : (r.Seller.UserName ?? r.Seller.Email ?? "Seller"))
+                        : "Seller",
+                    sellerEmail = r.Seller != null ? r.Seller.Email : string.Empty,
                     r.RequestedAt,
                     r.Status
                 })
@@ -126,12 +145,19 @@ namespace TurathApi.Controllers.Admin
 
             request.Status = "Approved";
 
-            var newCategory = new Category
-            {
-                Name = request.CategoryName
-            };
+            var categoryExists = await _context.Categories
+                .AnyAsync(c => c.Name.ToLower() == request.CategoryName.ToLower().Trim());
 
-            _context.Categories.Add(newCategory);
+            if (!categoryExists)
+            {
+                var newCategory = new Category
+                {
+                    Name = request.CategoryName.Trim()
+                };
+
+                _context.Categories.Add(newCategory);
+            }
+
             await _context.SaveChangesAsync();
 
             return Ok(new { message = $"Category '{request.CategoryName}' has been approved and added successfully." });
@@ -160,6 +186,8 @@ namespace TurathApi.Controllers.Admin
         public async Task<IActionResult> GetPendingBooks()
         {
             var pendingBooks = await _context.Books
+                .Include(b => b.Category)
+                .Include(b => b.Seller)
                 .Where(b => b.ApprovalStatus == ApprovalStatus.Pending)
                 .Select(b => new
                 {
@@ -167,7 +195,18 @@ namespace TurathApi.Controllers.Admin
                     b.Title,
                     b.Author,
                     b.Price,
+                    b.Quantity,
+                    b.CategoryId,
+                    CategoryName = b.Category != null ? b.Category.Name : "General",
                     b.SellerId,
+                    SellerName = b.Seller != null
+                        ? (!string.IsNullOrWhiteSpace(b.Seller.FirstName)
+                            ? (b.Seller.FirstName + " " + (b.Seller.LastName ?? "")).Trim()
+                            : b.Seller.UserName ?? b.Seller.Email ?? "Verified Seller")
+                        : "Verified Seller",
+                    SellerEmail = b.Seller != null ? b.Seller.Email : string.Empty,
+                    b.ImageUrl,
+                    Condition = b.Condition.ToString(),
                     ApprovalStatus = b.ApprovalStatus.ToString()
                 })
                 .ToListAsync();
@@ -180,6 +219,8 @@ namespace TurathApi.Controllers.Admin
         public async Task<IActionResult> GetAllBooks()
         {
             var books = await _context.Books
+                .Include(b => b.Category)
+                .Include(b => b.Seller)
                 .Select(b => new
                 {
                     b.Id,
@@ -187,7 +228,17 @@ namespace TurathApi.Controllers.Admin
                     b.Author,
                     b.Price,
                     b.Quantity,
+                    b.CategoryId,
+                    CategoryName = b.Category != null ? b.Category.Name : "General",
                     b.SellerId,
+                    SellerName = b.Seller != null
+                        ? (!string.IsNullOrWhiteSpace(b.Seller.FirstName)
+                            ? (b.Seller.FirstName + " " + (b.Seller.LastName ?? "")).Trim()
+                            : b.Seller.UserName ?? b.Seller.Email ?? "Verified Seller")
+                        : "Verified Seller",
+                    SellerEmail = b.Seller != null ? b.Seller.Email : string.Empty,
+                    b.ImageUrl,
+                    Condition = b.Condition.ToString(),
                     ApprovalStatus = b.ApprovalStatus.ToString()
                 })
                 .ToListAsync();

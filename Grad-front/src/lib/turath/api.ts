@@ -2,8 +2,13 @@ export function apiBaseUrl() {
   return (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 }
 
+export function getStoredToken(): string | null {
+  if (typeof localStorage === "undefined") return null;
+  return localStorage.getItem("token");
+}
+
 export function authHeaders(includeJson = true): HeadersInit {
-  const token = localStorage.getItem("token");
+  const token = getStoredToken();
   const headers: Record<string, string> = {};
 
   if (token) {
@@ -17,43 +22,60 @@ export function authHeaders(includeJson = true): HeadersInit {
   return headers;
 }
 
-export function currentUserId(): string | null {
-  const token = localStorage.getItem("token");
+export function safeDecodeJwtPayload(token: string | null): any {
   if (!token) return null;
-
   try {
-    const payload = token.split(".")[1];
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const decoded = JSON.parse(atob(normalized));
-    return (
-      decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] ??
-      decoded.nameid ??
-      decoded.sub ??
-      decoded.uid ??
-      decoded.userId ??
-      null
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+    let base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    while (base64.length % 4 !== 0) {
+      base64 += "=";
+    }
+    const jsonStr = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
     );
+    return JSON.parse(jsonStr);
   } catch {
-    return null;
+    try {
+      let base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      while (base64.length % 4 !== 0) {
+        base64 += "=";
+      }
+      return JSON.parse(atob(base64));
+    } catch {
+      return null;
+    }
   }
 }
 
-export function currentUserRoles(): string[] {
-  const token = localStorage.getItem("token");
-  if (!token) return [];
+export function currentUserId(): string | null {
+  const token = getStoredToken();
+  const decoded = safeDecodeJwtPayload(token);
+  if (!decoded) return null;
 
-  try {
-    const payload = token.split(".")[1];
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const decoded = JSON.parse(atob(normalized));
-    const raw =
-      decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ??
-      decoded.role ??
-      decoded.roles;
-    return Array.isArray(raw) ? raw : raw ? [raw] : [];
-  } catch {
-    return [];
-  }
+  return (
+    decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] ??
+    decoded.nameid ??
+    decoded.sub ??
+    decoded.uid ??
+    decoded.userId ??
+    null
+  );
+}
+
+export function currentUserRoles(): string[] {
+  const token = getStoredToken();
+  const decoded = safeDecodeJwtPayload(token);
+  if (!decoded) return [];
+
+  const raw =
+    decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ??
+    decoded.role ??
+    decoded.roles;
+  return Array.isArray(raw) ? raw : raw ? [raw] : [];
 }
 
 export async function apiFetch<T>(input: string, init?: RequestInit): Promise<T> {
@@ -65,18 +87,27 @@ export async function apiFetch<T>(input: string, init?: RequestInit): Promise<T>
     },
   });
 
-  const contentType = response.headers.get("content-type") ?? "";
-  const data = contentType.includes("application/json") ? await response.json() : await response.text();
+  const text = await response.text();
+  let data: any = null;
+  if (text && text.trim().length > 0) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+  }
 
   if (!response.ok) {
     const message =
       typeof data === "object" && data !== null && "message" in data
         ? String((data as { message?: string }).message)
-        : typeof data === "string"
-          ? data
-          : "Request failed";
+        : typeof data === "object" && data !== null && "title" in data
+          ? String((data as { title?: string }).title)
+          : typeof data === "string" && data.trim().length > 0
+            ? data
+            : response.statusText || `Request failed with status ${response.status}`;
     throw new Error(message);
   }
 
-  return data as T;
+  return (data ?? {}) as T;
 }

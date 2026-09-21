@@ -4,8 +4,8 @@ namespace TurathApi.DTOs.Reviews
 {
     public class CreateReviewDto
     {
-        [Required]
-        public string CustomerId { get; set; } = string.Empty;
+        public string? CustomerId { get; set; }
+
         [Required]
         public int BookId { get; set; }
 

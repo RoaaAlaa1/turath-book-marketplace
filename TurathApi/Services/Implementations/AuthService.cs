@@ -80,11 +80,21 @@ namespace TurathApi.Services.Implementations
             var user = await _userManager.FindByEmailAsync(dto.Email);
             if (user == null || !await _userManager.CheckPasswordAsync(user, dto.Password))
             {
-                // المعيار الأمني: إرجاع تلميح مبهم لمنع الـ Enumeration Attack
+                // Security standard: generic message to prevent enumeration attack
                 return new AuthResponseDto
                 {
                     IsSuccess = false,
                     Message = "Invalid credentials."
+                };
+            }
+
+            if (await _userManager.IsLockedOutAsync(user))
+            if ((user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow) || await _userManager.IsLockedOutAsync(user))
+            {
+                return new AuthResponseDto
+                {
+                    IsSuccess = false,
+                    Message = "Your account has been suspended by an administrator."
                 };
             }
 
@@ -95,6 +105,45 @@ namespace TurathApi.Services.Implementations
             {
                 IsSuccess = true,
                 Message = "Login successful.",
+                Token = token.Token,
+                ExpiresOn = token.ExpiresOn,
+                Email = user.Email,
+                Username = user.UserName,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                PhoneNumber = user.PhoneNumber,
+                Roles = roles
+            };
+        }
+
+        public async Task<AuthResponseDto> GetCurrentUserAsync(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                return new AuthResponseDto
+                {
+                    IsSuccess = false,
+                    Message = "User not found."
+                };
+            }
+
+            if ((user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow) || await _userManager.IsLockedOutAsync(user))
+            {
+                return new AuthResponseDto
+                {
+                    IsSuccess = false,
+                    Message = "Your account has been suspended by an administrator."
+                };
+            }
+
+            var token = await GenerateJwtTokenAsync(user);
+            var roles = (await _userManager.GetRolesAsync(user)).ToList();
+
+            return new AuthResponseDto
+            {
+                IsSuccess = true,
+                Message = "Profile retrieved successfully.",
                 Token = token.Token,
                 ExpiresOn = token.ExpiresOn,
                 Email = user.Email,

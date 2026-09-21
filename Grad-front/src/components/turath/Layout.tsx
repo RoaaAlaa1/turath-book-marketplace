@@ -33,6 +33,7 @@ const navFor: Record<Role, { to: string; label: string }[]> = {
   admin: [
     { to: "/", label: "Home" },
     { to: "/shop", label: "Shop" },
+    { to: "/admin", label: "Admin Portal" },
     { to: "/account", label: "Account" },
   ],
 };
@@ -43,9 +44,15 @@ export function Layout({ children }: { children: ReactNode }) {
   const [wishOpen, setWishOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
 
-  // An application is not seller access. Keep pending applicants on customer navigation
-  // until the API issues a new JWT containing the Seller role after approval.
-  const safeRole: Role = activeUser?.sellerState === "pending" ? "customer" : (role ?? "customer");
+  // Determine user's active role (check JWT role, activeUser role, or store role)
+  const safeRole: Role =
+    role === "admin" || activeUser?.role === "admin" || Boolean(activeUser?.email?.toLowerCase().startsWith("admin@turath."))
+      ? "admin"
+      : role === "seller" || activeUser?.role === "seller" || activeUser?.sellerState === "approved"
+        ? "seller"
+        : activeUser?.sellerState === "pending"
+          ? "customer"
+          : (role ?? "customer");
   const safeCart = Array.isArray(cart) ? cart : [];
   const safeWishlist = Array.isArray(wishlist) ? wishlist : [];
 
@@ -55,10 +62,10 @@ export function Layout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("turath:open-auth", openAuth);
   }, []);
   const cartCount = safeCart.reduce((s, c) => s + (Number(c?.quantity) || 0), 0);
-  const navigation =
-    safeRole === "customer" && isAuthenticated
-      ? [...navFor[safeRole].slice(0, 2), { to: "/orders", label: "My Orders" }, ...navFor[safeRole].slice(2)]
-      : navFor[safeRole];
+  const baseNav = navFor[safeRole];
+  const navigation = isAuthenticated
+    ? [...baseNav.slice(0, 2), { to: "/orders", label: "My Orders" }, ...baseNav.slice(2)]
+    : baseNav;
 
   return (
     <div className="flex min-h-screen flex-col">

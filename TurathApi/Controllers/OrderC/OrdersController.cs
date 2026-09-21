@@ -45,24 +45,41 @@ namespace TurathApi.Controllers.Orders
                 return Unauthorized(new { message = "Invalid user identifier." });
             }
 
-            var targetUserId = string.IsNullOrEmpty(customerId) || customerId == "my-orders"
-                ? currentUserId
-                : customerId;
-
-            if (targetUserId != currentUserId && !User.IsInRole("Admin"))
-            {
-                return Forbid();
-            }
-
-            var orders = await _context.Orders
+            var isAdmin = User.IsInRole("Admin");
+            var query = _context.Orders
                 .Include(o => o.OrderItems)
                 .AsNoTracking()
-                .Where(o => o.CustomerId == targetUserId)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(customerId) && customerId != "my-orders" && customerId != "all")
+            {
+                if (customerId != currentUserId && !isAdmin)
+                {
+                    return Forbid();
+                }
+                query = query.Where(o => o.CustomerId == customerId);
+            }
+            else if (!isAdmin || customerId == "my-orders")
+            {
+                query = query.Where(o => o.CustomerId == currentUserId);
+            }
+
+            var orders = await query
                 .OrderByDescending(o => o.CreatedAt)
                 .Select(o => new
                 {
                     id = o.Id,
                     customerId = o.CustomerId,
+                    customerName = _context.Users
+                        .Where(u => u.Id == o.CustomerId)
+                        .Select(u => !string.IsNullOrWhiteSpace(u.FirstName)
+                            ? $"{u.FirstName} {u.LastName}".Trim()
+                            : (u.UserName ?? u.Email ?? "Customer"))
+                        .FirstOrDefault() ?? "Customer",
+                    customerEmail = _context.Users
+                        .Where(u => u.Id == o.CustomerId)
+                        .Select(u => u.Email)
+                        .FirstOrDefault() ?? "",
                     status = o.Status,
                     totalPrice = o.Total,
                     total = o.Total,
@@ -243,5 +260,38 @@ namespace TurathApi.Controllers.Orders
 
             return Ok(new { message = "Order cancelled successfully." });
         }
+
+        // PUT /api/Orders/{id}/status
+        [HttpPut("{id}/status")]
+        [Authorize]
+        public async Task<ActionResult> UpdateOrderStatus(string id, [FromBody] UpdateOrderStatusPayload dto)
+        {
+            Order? order = null;
+            if (Guid.TryParse(id, out var guidId))
+            {
+                order = await _context.Orders.FindAsync(guidId);
+            }
+            if (order == null)
+            {
+                order = await _context.Orders.FirstOrDefaultAsync(o => o.Id.ToString() == id);
+            }
+            if (order == null)
+            {
+                return NotFound(new { message = "Order not found." });
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.Status))
+            {
+                order.Status = dto.Status.Trim();
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(new { message = $"Order status updated to {order.Status}." });
+        }
+    }
+
+    public class UpdateOrderStatusPayload
+    {
+        public string Status { get; set; } = string.Empty;
     }
 }

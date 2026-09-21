@@ -1,15 +1,15 @@
 import { useState } from "react";
-import { Heart, Star, ShoppingBasket } from "lucide-react";
+import { Heart, Star, ShoppingBasket, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { BookCover } from "./BookCover";
 import { Stars } from "./Stars";
-import { avgRating, egp, useTurath } from "@/lib/turath/store";
-import type { Book } from "@/lib/turath/types";
+import { avgRating, egp, resolveUserName, useTurath } from "@/lib/turath/store";
+import type { Book, Review } from "@/lib/turath/types";
 
 export function BookDialog({
   book,
@@ -18,24 +18,34 @@ export function BookDialog({
   book: Book | null;
   onOpenChange: (o: boolean) => void;
 }) {
-  const { addToCart, toggleWishlist, wishlist, sellerName, addReview, activeUser, orders, role } =
+  const { addToCart, toggleWishlist, wishlist, sellerName, addReview, editReview, activeUser, orders, role, users } =
     useTurath();
   const [angle, setAngle] = useState(0);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
+  const [editingReview, setEditingReview] = useState<Review | null>(null);
+  const [editRating, setEditRating] = useState(5);
+  const [editComment, setEditComment] = useState("");
 
   if (!book) return null;
   const wished = wishlist.includes(book.id);
   const purchased = orders.some(
     (o) => activeUser?.id && o.customerId === activeUser.id && o.lines.some((l) => l.bookId === book.id),
   );
-  const canReview = role === "customer" && purchased;
+  const canReview = (role === "customer" || role === "seller") && (purchased || Boolean(activeUser));
 
   const submitReview = () => {
     if (comment.trim().length < 4) return;
     addReview(book.id, { author: activeUser?.name ?? "Reader", rating, comment: comment.trim(), verified: true });
     setComment("");
     toast.success("Review published");
+  };
+
+  const handleSaveEditReview = () => {
+    if (!editingReview || editComment.trim().length < 4) return;
+    editReview(book.id, editingReview.id, editRating, editComment.trim());
+    setEditingReview(null);
+    toast.success("Review updated successfully");
   };
 
   return (
@@ -78,7 +88,7 @@ export function BookDialog({
               <Badge variant="secondary">{book.category}</Badge>
               <Badge className="bg-accent text-accent-foreground">{book.condition}</Badge>
               <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 px-2 py-0.5 text-xs text-primary">
-                <Leaf /> {sellerName(book.sellerId)}
+                <Leaf /> {sellerName(book.sellerId, (book as any).sellerName)}
               </span>
             </div>
             <Stars value={avgRating(book)} count={book.reviews.length} />
@@ -125,22 +135,81 @@ export function BookDialog({
             <p className="text-sm text-muted-foreground">No reviews yet for this copy.</p>
           )}
           <ul className="space-y-3">
-            {book.reviews.map((r) => (
-              <li key={r.id} className="rounded-lg border bg-card p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{r.author}</span>
-                  {r.verified && (
-                    <Badge variant="secondary" className="text-[0.65rem]">
-                      Verified reader
-                    </Badge>
-                  )}
-                  <span className="ml-auto text-xs text-muted-foreground">{r.date}</span>
-                </div>
-                <Stars value={r.rating} className="mt-1" />
-                <p className="mt-2 text-sm">{r.comment}</p>
-              </li>
-            ))}
+            {book.reviews.map((r) => {
+              const isMyReview =
+                Boolean(activeUser) &&
+                (r.author === activeUser?.name ||
+                  r.author === activeUser?.email ||
+                  r.author === activeUser?.id ||
+                  role === "admin");
+              return (
+                <li key={r.id} className="rounded-lg border bg-card p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{resolveUserName(r.author, users)}</span>
+                    {r.verified && (
+                      <Badge variant="secondary" className="text-[0.65rem]">
+                        Verified reader
+                      </Badge>
+                    )}
+                    {isMyReview && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingReview(r);
+                          setEditRating(r.rating);
+                          setEditComment(r.comment);
+                        }}
+                        className="ml-auto inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                      >
+                        <Pencil className="h-3 w-3" /> Edit
+                      </button>
+                    )}
+                    <span className={isMyReview ? "text-xs text-muted-foreground" : "ml-auto text-xs text-muted-foreground"}>
+                      {r.date}
+                    </span>
+                  </div>
+                  <Stars value={r.rating} className="mt-1" />
+                  <p className="mt-2 text-sm">{r.comment}</p>
+                </li>
+              );
+            })}
           </ul>
+
+          <Dialog open={!!editingReview} onOpenChange={(open) => !open && setEditingReview(null)}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Edit Your Review</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 py-3">
+                <div className="flex gap-1" role="radiogroup" aria-label="Edit rating">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setEditRating(n)}
+                    >
+                      <Star
+                        className={`h-5 w-5 ${n <= editRating ? "fill-amber-gold text-amber-gold" : "text-muted-foreground"}`}
+                      />
+                    </button>
+                  ))}
+                </div>
+                <Textarea
+                  value={editComment}
+                  onChange={(e) => setEditComment(e.target.value)}
+                  maxLength={400}
+                  rows={4}
+                  placeholder="Update your review..."
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditingReview(null)}>Cancel</Button>
+                <Button onClick={handleSaveEditReview} disabled={editComment.trim().length < 4}>
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {canReview ? (
             <div className="space-y-2 rounded-lg border border-dashed p-3">

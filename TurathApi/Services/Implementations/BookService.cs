@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using TurathApi.Data;
 using TurathApi.DTOs;
 using TurathApi.DTOs.Books;
@@ -112,10 +112,25 @@ namespace TurathApi.Services.Implementations
 
         public async Task<BookResponseDto> CreateBookAsync(CreateBookDto dto, string sellerId)
         {
-            var categoryExists = await _context.Categories.AnyAsync(c => c.Id == dto.CategoryId);
-            if (!categoryExists)
+            Category? category = null;
+            if (dto.CategoryId.HasValue && dto.CategoryId.Value > 0)
             {
-                throw new ArgumentException($"Category with ID {dto.CategoryId} does not exist.");
+                category = await _context.Categories.FindAsync(dto.CategoryId.Value);
+            }
+            if (category == null && !string.IsNullOrWhiteSpace(dto.CategoryName))
+            {
+                var norm = dto.CategoryName.Trim().ToLower();
+                category = await _context.Categories.FirstOrDefaultAsync(c => c.Name.ToLower() == norm);
+            }
+            if (category == null && !string.IsNullOrWhiteSpace(dto.CategoryName))
+            {
+                category = new Category { Name = dto.CategoryName.Trim() };
+                _context.Categories.Add(category);
+                await _context.SaveChangesAsync();
+            }
+            if (category == null)
+            {
+                category = await _context.Categories.FirstOrDefaultAsync();
             }
 
             var book = new Book
@@ -125,7 +140,7 @@ namespace TurathApi.Services.Implementations
                 Description = dto.Description,
                 Price = dto.Price,
                 Quantity = dto.Quantity,
-                CategoryId = dto.CategoryId,
+                CategoryId = category?.Id ?? 1,
                 ImageUrl = dto.ImageUrl,
                 Condition = dto.Condition,
                 AgeRating = dto.AgeRating,
@@ -146,10 +161,21 @@ namespace TurathApi.Services.Implementations
 
             if (existingBook == null) return false;
 
-            var categoryExists = await _context.Categories.AnyAsync(c => c.Id == dto.CategoryId);
-            if (!categoryExists)
+            Category? category = null;
+            if (dto.CategoryId.HasValue && dto.CategoryId.Value > 0)
             {
-                throw new ArgumentException($"Category with ID {dto.CategoryId} does not exist.");
+                category = await _context.Categories.FindAsync(dto.CategoryId.Value);
+            }
+            if (category == null && !string.IsNullOrWhiteSpace(dto.CategoryName))
+            {
+                var norm = dto.CategoryName.Trim().ToLower();
+                category = await _context.Categories.FirstOrDefaultAsync(c => c.Name.ToLower() == norm);
+            }
+            if (category == null && !string.IsNullOrWhiteSpace(dto.CategoryName))
+            {
+                category = new Category { Name = dto.CategoryName.Trim() };
+                _context.Categories.Add(category);
+                await _context.SaveChangesAsync();
             }
 
             existingBook.Title = dto.Title;
@@ -159,7 +185,10 @@ namespace TurathApi.Services.Implementations
             existingBook.AgeRating = dto.AgeRating;
             existingBook.Price = dto.Price;
             existingBook.Quantity = dto.Quantity;
-            existingBook.CategoryId = dto.CategoryId;
+            if (category != null)
+            {
+                existingBook.CategoryId = category.Id;
+            }
             existingBook.ImageUrl = dto.ImageUrl;
             existingBook.ApprovalStatus = ApprovalStatus.Pending;
 
